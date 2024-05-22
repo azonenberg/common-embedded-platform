@@ -54,6 +54,9 @@ void BSP_DetectHardware();
 ///@brief User-defined function to perform any other init required before entering the main event loop
 void BSP_Init();
 
+///@brief Run the main loop
+void BSP_MainLoop();
+
 ///@brief Run an iteration of the main loop
 void BSP_MainLoopIteration();
 

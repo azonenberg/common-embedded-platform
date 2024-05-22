@@ -66,9 +66,7 @@ int main()
 	BSP_Init();
 
 	//Main event loop
-	g_log("Ready\n");
-	while(1)
-		BSP_MainLoopIteration();
+	BSP_MainLoop();
 
 	//never get here
 	return 0;
@@ -93,6 +91,16 @@ void __attribute__((noreturn)) Reset()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Default main loop, may override in special cases
+
+void __attribute__((weak)) BSP_MainLoop()
+{
+	g_log("Ready\n");
+	while(1)
+		BSP_MainLoopIteration();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BSP functions (weak dummy implementations, expected to be overridden by application FW)
 
 void __attribute__((weak)) BSP_InitPower()
@@ -112,5 +120,9 @@ void __attribute__((weak)) BSP_InitLog()
 }
 
 void __attribute__((weak)) BSP_Init()
+{
+}
+
+void __attribute__((weak)) BSP_MainLoopIteration()
 {
 }
