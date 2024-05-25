@@ -224,7 +224,9 @@ void EraseFlash(uint32_t* appVector)
 void __attribute__((noreturn)) BootApplication(const uint32_t* appVector)
 {
 	//Debug delay in case we bork something
-	g_logTimer.Sleep(10000);
+	#ifdef DEBUG_BOOT_DELAY
+		g_logTimer.Sleep(10000);
+	#endif
 
 	//Print our final log message and flush the transmit FIFO before transferring control to the application
 	g_log("Booting application...\n\n");
