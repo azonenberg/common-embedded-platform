@@ -192,7 +192,9 @@ void EraseFlash(uint32_t* appVector)
 	uint8_t* appStart				= reinterpret_cast<uint8_t*>(appVector);
 
 	#if defined(STM32L431)
-		const uint32_t eraseBlockSize	= 2048;
+		const uint32_t eraseBlockSize	= 2 * 1024;
+	#elif defined(STM32H735)
+		const uint32_t eraseBlockSize	= 128 * 1024;
 	#else
 		#error Dont know erase block size for this chip!
 	#endif
