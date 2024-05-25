@@ -32,6 +32,10 @@
 const char* GetStepping(uint16_t rev);
 const char* GetPartName(uint16_t device);
 
+#ifdef STM32H735
+#define HAVE_PKG
+#endif
+
 #ifdef HAVE_PKG
 const char* GetPackage(uint8_t pkg);
 #endif
