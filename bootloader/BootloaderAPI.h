@@ -27,124 +27,39 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "platform.h"
+#ifndef BootloaderAPI_h
+#define BootloaderAPI_h
 
 /**
-	@file
-	@author		Andrew D. Zonenberg
-	@brief 		Common main() and globals shared by all users of the platform
+	@brief Command/status API exposed by the bootloader to the application, through backup SRAM
  */
 
-///@brief The log instance
-Logger g_log;
-
-///@brief Key-value store used for storing configuration settings
-KVS* g_kvs = nullptr;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Application entry point
-
-int main()
+//Boot state machine
+enum BootloaderState
 {
-	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
-	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
+	STATE_POR		= 0x00,			//we just booted for the first time since powerup
+	STATE_APP		= 0x01,			//Application was launched, no fault detected
+	STATE_DFU		= 0x02,			//Application requested we enter DFU mode
+	STATE_CRASH		= 0x03			//Application crash handler called
+};
 
-	//Re-enable interrupts since the bootloader (if used) may have turned them off
-	EnableInterrupts();
-
-	//Enable some core peripherals if we have them (things we're always going to want to use)
-	#ifdef HAVE_PWR
-	RCCHelper::Enable(&PWR);
-	#endif
-
-	//Hardware setup
-	BSP_InitPower();
-	BSP_InitClocks();
-	BSP_InitUART();
-	BSP_InitLog();
-	g_log("Logging ready\n");
-	BSP_DetectHardware();
-
-	//Do any other late initialization
-	BSP_Init();
-
-	//Main event loop
-	BSP_MainLoop();
-
-	//never get here
-	return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Firmware build data string (used by bootloader if we have one)
-
-extern "C" const char
-	__attribute__((section(".fwver")))
-	__attribute__((used))
-	g_firmwareVersion[] = __DATE__ " " __TIME__;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Global helper functions
-
-void __attribute__((noreturn)) Reset()
+enum CrashReason
 {
-	SCB.AIRCR = 0x05fa0004;
-	while(1)
-	{}
-}
+	CRASH_UNUSED_ISR	= 0x00,
+	CRASH_NMI			= 0x01,
+	CRASH_HARD_FAULT	= 0x02,
+	CRASH_BUS_FAULT		= 0x03,
+	CRASH_USAGE_FAULT	= 0x04,
+	CRASH_MMU_FAULT		= 0x05
+};
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Default main loop, may override in special cases
-
-void __attribute__((weak)) BSP_MainLoop()
+//BBRAM content
+struct __attribute__((packed)) BootloaderBBRAM
 {
-	g_log("Ready\n");
-	while(1)
-		BSP_MainLoopIteration();
-}
+	BootloaderState m_state;
+	CrashReason		m_crashReason;
+};
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// BSP functions (weak dummy implementations, expected to be overridden by application FW)
+extern volatile BootloaderBBRAM* g_bbram;
 
-void __attribute__((weak)) BSP_InitPower()
-{
-}
-
-void __attribute__((weak)) BSP_InitClocks()
-{
-}
-
-void __attribute__((weak)) BSP_InitUART()
-{
-}
-
-void __attribute__((weak)) BSP_InitLog()
-{
-}
-
-void __attribute__((weak)) BSP_Init()
-{
-}
-
-void __attribute__((weak)) BSP_MainLoopIteration()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Global state we use in pretty much every firmware
-
-/**
-	@brief Set up the microkvs key-value store for persisting our configuration
- */
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize)
-{
-	g_log("Initializing microkvs key-value store\n");
-	static KVS kvs(left, right, logsize);
-	g_kvs = &kvs;
-
-	LogIndenter li(g_log);
-	g_log("Block size:  %d bytes\n", kvs.GetBlockSize());
-	g_log("Log:         %d / %d slots free\n", (int)kvs.GetFreeLogEntries(), (int)kvs.GetLogCapacity());
-	g_log("Data:        %d / %d bytes free\n", (int)kvs.GetFreeDataSpace(), (int)kvs.GetDataCapacity());
-	g_log("Active bank: %s\n", kvs.IsLeftBankActive() ? "left" : "right");
-}
+#endif

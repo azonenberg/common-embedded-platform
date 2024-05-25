@@ -27,124 +27,110 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#include "platform.h"
+#ifndef bootloader_common_h
+#define bootloader_common_h
+
+#include "BootloaderAPI.h"
+
+#include <peripheral/CRC.h>
+#include <peripheral/Flash.h>
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Common globals with pointers to various regions of flash
+
+///@brief Pointer to the application region of flash
+extern uint32_t* const	g_appVector;
+
+///@brief Size of application region of flash
+extern const uint32_t	g_appImageSize;
+
+///@brief Offset of the application version string within flash (interrupt vector table size plus 32-byte alignment)
+extern const uint32_t	g_appVersionOffset;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// KVS keys for bootloader state
+
+extern const char* g_imageVersionKey;
+extern const char* g_imageCRCKey;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Hooks for customizing the bootloader
 
 /**
-	@file
-	@author		Andrew D. Zonenberg
-	@brief 		Common main() and globals shared by all users of the platform
+	@brief Board-specific bootloader initialization
+
+	As a minimum, this function should define two storage banks and call InitKVS() on them
  */
-
-///@brief The log instance
-Logger g_log;
-
-///@brief Key-value store used for storing configuration settings
-KVS* g_kvs = nullptr;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Application entry point
-
-int main()
-{
-	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
-	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
-
-	//Re-enable interrupts since the bootloader (if used) may have turned them off
-	EnableInterrupts();
-
-	//Enable some core peripherals if we have them (things we're always going to want to use)
-	#ifdef HAVE_PWR
-	RCCHelper::Enable(&PWR);
-	#endif
-
-	//Hardware setup
-	BSP_InitPower();
-	BSP_InitClocks();
-	BSP_InitUART();
-	BSP_InitLog();
-	g_log("Logging ready\n");
-	BSP_DetectHardware();
-
-	//Do any other late initialization
-	BSP_Init();
-
-	//Main event loop
-	BSP_MainLoop();
-
-	//never get here
-	return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Firmware build data string (used by bootloader if we have one)
-
-extern "C" const char
-	__attribute__((section(".fwver")))
-	__attribute__((used))
-	g_firmwareVersion[] = __DATE__ " " __TIME__;
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Global helper functions
-
-void __attribute__((noreturn)) Reset()
-{
-	SCB.AIRCR = 0x05fa0004;
-	while(1)
-	{}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Default main loop, may override in special cases
-
-void __attribute__((weak)) BSP_MainLoop()
-{
-	g_log("Ready\n");
-	while(1)
-		BSP_MainLoopIteration();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// BSP functions (weak dummy implementations, expected to be overridden by application FW)
-
-void __attribute__((weak)) BSP_InitPower()
-{
-}
-
-void __attribute__((weak)) BSP_InitClocks()
-{
-}
-
-void __attribute__((weak)) BSP_InitUART()
-{
-}
-
-void __attribute__((weak)) BSP_InitLog()
-{
-}
-
-void __attribute__((weak)) BSP_Init()
-{
-}
-
-void __attribute__((weak)) BSP_MainLoopIteration()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Global state we use in pretty much every firmware
+void Bootloader_Init();
 
 /**
-	@brief Set up the microkvs key-value store for persisting our configuration
+	@brief Clears any command buffer data that showed up while we were busy, to prevent overflows
  */
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize)
-{
-	g_log("Initializing microkvs key-value store\n");
-	static KVS kvs(left, right, logsize);
-	g_kvs = &kvs;
+void Bootloader_ClearRxBuffer();
 
-	LogIndenter li(g_log);
-	g_log("Block size:  %d bytes\n", kvs.GetBlockSize());
-	g_log("Log:         %d / %d slots free\n", (int)kvs.GetFreeLogEntries(), (int)kvs.GetLogCapacity());
-	g_log("Data:        %d / %d bytes free\n", (int)kvs.GetFreeDataSpace(), (int)kvs.GetDataCapacity());
-	g_log("Active bank: %s\n", kvs.IsLeftBankActive() ? "left" : "right");
-}
+/**
+	@brief Do any final processing before the application launches
+
+	As a minimum, the UART transmit FIFO should be flushed to ensure that all debug log messages from the bootloader
+	are printed before the application takes control
+ */
+void Bootloader_FinalCleanup();
+
+/**
+	@brief Run the "firmware update" mode of the bootloader
+
+	This function should provide some sort of command interface (via SPI, serial, Ethernet, etc) for pushing a new
+	firmware image to the device.
+
+	It is called if the user requests a firmware update, or if no bootable image was found in flash
+ */
+void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow();
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Bootloader methods called by the main loop or DFU flow
+
+/**
+	@brief Main event loop for the bootloader
+ */
+void Bootloader_MainLoop();
+
+/**
+	@brief Check if the provided app partition contains what looks like a valid image
+
+	@param appVector	Pointer to application partition
+ */
+bool ValidateAppPartition(const uint32_t* appVector);
+
+/**
+	@brief Checks if the application partition contains a different firmware version than we last booted
+
+	@param appVector	Pointer to application partition
+	@param firmwareVer	Output string set to firmware version on success, or null on failure
+
+	@return True if app version has changed
+ */
+bool IsAppUpdated(const uint32_t* appVector, const char*& firmwareVer);
+
+/**
+	@brief Gets the application version string (if valid and null terminated)
+
+	Returns null on failure.
+ */
+const char* GetImageVersion(const uint32_t* appVector);
+
+/**
+	@brief Jump to the application partition and launch it
+ */
+void __attribute__((noreturn)) BootApplication(const uint32_t* appVector);
+
+/**
+	@brief Assembly helper called by BootApplication
+ */
+extern "C" void __attribute__((noreturn)) DoBootApplication(const uint32_t* appVector);
+
+/**
+	@brief Erases the application flash partition
+ */
+void EraseFlash(uint32_t* appVector);
+
+#endif

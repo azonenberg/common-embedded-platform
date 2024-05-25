@@ -39,13 +39,16 @@
 #include <peripheral/Timer.h>
 
 #include <util/Logger.h>
+#include <microkvs/kvs/KVS.h>
 
 //Common globals every system expects to have available
 extern Logger g_log;
 extern Timer g_logTimer;
+extern KVS* g_kvs;
 
 //Global helper functions
 void __attribute__((noreturn)) Reset();
+void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
 
 #include "bsp.h"
 
