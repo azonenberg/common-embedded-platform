@@ -32,6 +32,10 @@
 const char* GetStepping(uint16_t rev);
 const char* GetPartName(uint16_t device);
 
+#ifdef HAVE_PKG
+const char* GetPackage(uint8_t pkg);
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Print identifying hardware info
 
@@ -43,33 +47,84 @@ void __attribute__((weak)) BSP_DetectHardware()
 	auto srev = GetStepping(DBGMCU.IDCODE >> 16);
 	auto part = GetPartName(DBGMCU.IDCODE & 0xfff);
 
-	g_log("STM32%s stepping %s\n", part, srev);
+	#ifdef HAVE_PKG
+		RCCHelper::EnableSyscfg();
 
-	#ifdef STM32L431
-	g_log("64 kB total SRAM, 1 kB EEPROM, 128 byte backup SRAM\n");
+		auto pkg = GetPackage(SYSCFG.PKGR);
+		g_log("STM32%s stepping %s, %s\n", part, srev, pkg);
+	#else
+		g_log("STM32%s stepping %s\n", part, srev);
 	#endif
 
-	g_log("%d kB Flash\n", FLASH_SIZE);
+	#ifdef STM32L431
+		g_log("64 kB total SRAM, 1 kB EEPROM, 128 byte backup SRAM\n");
+	#elif defined(STM32H735)
+		g_log("564 kB total SRAM, 128 kB DTCM, up to 256 kB ITCM, 4 kB backup SRAM\n");
+	#endif
+
+	#ifdef STM32L431
+		g_log("%d kB Flash\n", FLASH_SIZE);
+	#else
+		g_log("%d kB Flash\n", F_ID);
+	#endif
 
 	uint16_t waferX = U_ID[0] >> 16;
 	uint16_t waferY = U_ID[0] & 0xffff;
 	uint8_t waferNum = U_ID[1] & 0xff;
-	char waferLot[8] =
-	{
-		static_cast<char>((U_ID[2] >> 24) & 0xff),
-		static_cast<char>((U_ID[2] >> 16) & 0xff),
-		static_cast<char>((U_ID[2] >> 8) & 0xff),
-		static_cast<char>((U_ID[2] >> 0) & 0xff),
-		static_cast<char>((U_ID[1] >> 24) & 0xff),
-		static_cast<char>((U_ID[1] >> 16) & 0xff),
-		static_cast<char>((U_ID[1] >> 8) & 0xff),
-		'\0'
-	};
+	#ifdef STM32H7
+		//U_ID fields documented in 45.1 of STM32 programming manual
+		char waferLot[8] =
+		{
+			static_cast<char>((U_ID[1] >> 24) & 0xff),
+			static_cast<char>((U_ID[1] >> 16) & 0xff),
+			static_cast<char>((U_ID[1] >> 8) & 0xff),
+			static_cast<char>((U_ID[2] >> 24) & 0xff),
+			static_cast<char>((U_ID[2] >> 16) & 0xff),
+			static_cast<char>((U_ID[2] >> 8) & 0xff),
+			static_cast<char>((U_ID[2] >> 0) & 0xff),
+			'\0'
+		};
+	#else
+		//TODO: double check this is right ordering
+		char waferLot[8] =
+		{
+			static_cast<char>((U_ID[2] >> 24) & 0xff),
+			static_cast<char>((U_ID[2] >> 16) & 0xff),
+			static_cast<char>((U_ID[2] >> 8) & 0xff),
+			static_cast<char>((U_ID[2] >> 0) & 0xff),
+			static_cast<char>((U_ID[1] >> 24) & 0xff),
+			static_cast<char>((U_ID[1] >> 16) & 0xff),
+			static_cast<char>((U_ID[1] >> 8) & 0xff),
+			'\0'
+		};
+	#endif
 	g_log("Lot %s, wafer %d, die (%d, %d)\n", waferLot, waferNum, waferX, waferY);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Crack device IDs
+
+#ifdef HAVE_PKG
+const char* GetPackage(uint8_t pkg)
+{
+	//For now, this is STM32H735 specific
+	switch(pkg)
+	{
+		case 0:		return "VQFPN68 (industrial)";
+		case 1:		return "LQFP100/TFBGA100 (legacy)";
+		case 2:		return "LQFP100 (industrial)";
+		case 3:		return "TFBGA100 (industrial)";
+		case 4:		return "WLCSP115 (industrial)";
+		case 5:		return "LQFP144 (legacy)";
+		case 6:		return "UFBGA144 (legacy)";
+		case 7:		return "LQFP144 (industrial)";
+		case 8:		return "UFBGA169 (industrial)";
+		case 9:		return "UFBGA176+25 (industrial)";
+		case 10:	return "LQFP176 (industrial)";
+		default:	return "unknown package";
+	}
+}
+#endif
 
 const char* GetStepping(uint16_t rev)
 {
@@ -81,13 +136,20 @@ const char* GetStepping(uint16_t rev)
 			case 0x2001:	return "Y";
 			default:		return "(unknown)";
 		}
+	#elif defined(STM32H7)
+		switch(rev)
+		{
+			case 0x1000:	return "A";
+			case 0x1001:	return "Z";
+			default:		return "(unknown)";
+		}
 	#endif
 
 	//if we get here, unrecognized
 	return "(unknown)";
 }
 
-const char* GetPartName(uint16_t device)
+const char* GetPartName([[maybe_unused]] uint16_t device)
 {
 	#ifdef STM32L4
 		switch(device)
@@ -97,6 +159,17 @@ const char* GetPartName(uint16_t device)
 			case 0x464:	return "L41xxx/42xxx";
 			default:	return "(unknown)";
 		}
+	#elif defined(STM32H7)
+		//0x483 is H735, but L_ID has text
+		static const char id[5] =
+		{
+			static_cast<char>((L_ID >> 24) & 0xff),
+			static_cast<char>((L_ID >> 16) & 0xff),
+			static_cast<char>((L_ID >> 8) & 0xff),
+			static_cast<char>((L_ID >> 0) & 0xff),
+			'\0'
+		};
+		return id;
 	#endif
 
 	//if we get here, unrecognized

@@ -53,7 +53,7 @@ int main()
 	EnableInterrupts();
 
 	//Enable some core peripherals if we have them (things we're always going to want to use)
-	#ifdef HAVE_PWR
+	#ifdef STM32L431
 	RCCHelper::Enable(&PWR);
 	#endif
 
