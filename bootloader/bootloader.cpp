@@ -46,8 +46,8 @@ void App_Init()
 
 	RCCHelper::Enable(&_CRC);
 
-	//We need to enable the RTC on STM32L4 since backup registers are part of the RTC block
-	#ifdef STM32L4
+	//We need to enable the RTC on STM32L4 and H7 since backup registers are part of the RTC block
+	#if defined(STM32L4) || defined(STM32H7)
 		RCCHelper::Enable(&_RTC);
 	#endif
 
