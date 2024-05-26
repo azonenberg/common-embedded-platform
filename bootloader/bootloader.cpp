@@ -101,8 +101,10 @@ bool ValidateAppPartition(const uint32_t* appVector)
 	{
 		g_log("New image present (JTAG flash?) but no corresponding saved CRC, updating CRC and version\n");
 
-		g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)firmwareVer, strlen(firmwareVer));
-		g_kvs->StoreObject(g_imageCRCKey, (const uint8_t*)&crc, sizeof(crc));
+		if(!g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)firmwareVer, strlen(firmwareVer)))
+			g_log(Logger::ERROR, "KVS write error\n");
+		if(!g_kvs->StoreObject(g_imageCRCKey, (const uint8_t*)&crc, sizeof(crc)))
+			g_log(Logger::ERROR, "KVS write error\n");
 		return true;
 	}
 
