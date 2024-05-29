@@ -91,8 +91,24 @@ bool ValidateAppPartition(const uint32_t* appVector)
 	}
 
 	//CRC the entire application partition (including blank space)
+	//Disable faults during the CRC so corrupted bit cells (double ECC failures) don't crash the bootoloader
+	#ifdef HAVE_FLASH_ECC
+		Flash::ClearECCFaults();
+		auto sr = SCB_DisableDataFaults();
+	#endif
 	auto start = g_logTimer.GetCount();
 	auto crc = CRC::Checksum((const uint8_t*)appVector, g_appImageSize);
+	#ifdef HAVE_FLASH_ECC
+		bool fail = Flash::CheckForECCFaults();
+		uint32_t addr = Flash::GetFaultAddress();
+		Flash::ClearECCFaults();
+		SCB_EnableDataFaults(sr);
+		if(fail)
+		{
+			g_log(Logger::ERROR, "Uncorrectable ECC error while checksumming image (at %08x)\n", addr);
+			return false;
+		}
+	#endif
 	auto dt = g_logTimer.GetCount() - start;
 	g_log("CRC of application partition: %08x (took %d.%d ms)\n", crc, dt/10, dt%10);
 
