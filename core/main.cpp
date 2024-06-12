@@ -146,5 +146,7 @@ void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize)
 	g_log("Block size:  %d bytes\n", kvs.GetBlockSize());
 	g_log("Log:         %d / %d slots free\n", (int)kvs.GetFreeLogEntries(), (int)kvs.GetLogCapacity());
 	g_log("Data:        %d / %d bytes free\n", (int)kvs.GetFreeDataSpace(), (int)kvs.GetDataCapacity());
-	g_log("Active bank: %s\n", kvs.IsLeftBankActive() ? "left" : "right");
+	g_log("Active bank: %s (rev %zu)\n",
+		kvs.IsLeftBankActive() ? "left" : "right",
+		kvs.GetBankHeaderVersion() );
 }
