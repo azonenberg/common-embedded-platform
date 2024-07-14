@@ -38,7 +38,7 @@
 #include <peripheral/RCC.h>
 #include <peripheral/Timer.h>
 
-#include <util/Logger.h>
+#include <embedded-utils/Logger.h>
 #include <microkvs/kvs/KVS.h>
 
 //Common globals every system expects to have available
