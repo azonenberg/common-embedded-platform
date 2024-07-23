@@ -71,6 +71,7 @@ public:
 		m_len = 0;
 		m_reverseMode = false;
 		m_clientPort = 0;
+		m_sequence = 0;
 	}
 
 	///@brief Position in the connection state machine
@@ -111,6 +112,7 @@ public:
 	uint32_t m_len;
 	bool m_reverseMode;
 	uint16_t m_clientPort;
+	uint32_t m_sequence;
 };
 
 class Iperf3Server : public TCPServer<MAX_IPERF_CLIENTS, IperfConnectionState>
@@ -140,7 +142,7 @@ protected:
 	bool OnRxParamExchange(int id, TCPTableEntry* socket);
 	bool OnRxEnd(int id, TCPTableEntry* socket);
 
-	void FillPacket(uint32_t* payload, uint32_t len);
+	void FillPacket(int id, uint32_t* payload, uint32_t len);
 
 	//also need a connection to the UDP server
 	UDPProtocol& m_udp;

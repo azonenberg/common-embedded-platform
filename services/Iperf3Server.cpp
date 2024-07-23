@@ -32,6 +32,10 @@
 #include <staticnet/stack/staticnet.h>
 #include "Iperf3Server.h"
 
+//For now assume we're on a STM32 with RTC
+#include <stm32.h>
+#include <peripheral/RTC.h>
+
 Iperf3Server::Iperf3Server(TCPProtocol& tcp, UDPProtocol& udp)
 	: TCPServer(tcp)
 	, m_udp(udp)
@@ -494,17 +498,30 @@ void Iperf3Server::SendDataOnStream(int id, TCPTableEntry* socket)
 		return;
 
 	uint32_t len = m_state[id].m_len;
-	FillPacket(reinterpret_cast<uint32_t*>(upack->Payload()), len);
+	FillPacket(id, reinterpret_cast<uint32_t*>(upack->Payload()), len);
 	m_udp.SendTxPacket(upack, IPERF3_PORT, m_state[id].m_clientPort, len);
 }
 
-void Iperf3Server::FillPacket(uint32_t* payload, uint32_t len)
+void Iperf3Server::FillPacket(int id, uint32_t* payload, uint32_t len)
 {
 	uint32_t wordlen = len/4;
 	if(len % 4)
 		wordlen ++;
 
-	payload[0] = 0xdeadbeef;
-	for(uint32_t i=1; i<wordlen; i++)
+	//For now, fill seconds and nanoseconds with zeroes
+	auto countval = g_logTimer.GetCount();
+	auto sec = countval / 10000;
+	auto ticks = (countval % 10000);
+	auto us = ticks * 100;
+	payload[0] = __builtin_bswap32(sec);
+	payload[1] = __builtin_bswap32(us);
+
+	//Sequence number (for now only 32 bit)
+	payload[2] = __builtin_bswap32(m_state[id].m_sequence);
+	payload[3] = 0;
+	m_state[id].m_sequence ++;
+
+	//fill with sequential byte values
+	for(uint32_t i=4; i<wordlen; i++)
 		payload[i] = i;
 }
