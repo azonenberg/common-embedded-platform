@@ -122,7 +122,7 @@ void STM32NTPClient::OnTimeUpdated(time_t sec, uint32_t frac)
 	}
 	else
 	{
-		g_log("Initial NTP sync successful, step = %d.%04d sec\n", dsec, dfrac);
+		g_log("Initial NTP sync successful, step = %d.%04d sec\n", -dsec, dfrac);
 		m_initialSyncDone = true;
 	}
 
