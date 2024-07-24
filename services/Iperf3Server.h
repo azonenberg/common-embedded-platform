@@ -72,6 +72,7 @@ public:
 		m_reverseMode = false;
 		m_clientPort = 0;
 		m_sequence = 0;
+		m_rxBuffer.Reset();
 	}
 
 	///@brief Position in the connection state machine
@@ -141,6 +142,7 @@ protected:
 	bool OnRxCookie(int id, TCPTableEntry* socket);
 	bool OnRxParamExchange(int id, TCPTableEntry* socket);
 	bool OnRxEnd(int id, TCPTableEntry* socket);
+	bool OnRxDone(int id, TCPTableEntry* socket);
 
 	void FillPacket(int id, uint32_t* payload, uint32_t len);
 

@@ -122,11 +122,25 @@ bool Iperf3Server::OnRxData(TCPTableEntry* socket, uint8_t* payload, uint16_t pa
 					return true;
 				return true;
 
+			//Disconnect
+			case IperfConnectionState::EXCHANGE_RESULTS:
+				if(!OnRxDone(id, socket))
+					return true;
+				return true;
+
 			//unknown state, stop
 			default:
 				return false;
 		}
 	}
+}
+
+/**
+	@brief Connection is done, ACK and discard whatever is sent to us until the client disconnects
+ */
+bool Iperf3Server::OnRxDone([[maybe_unused]] int id, [[maybe_unused]] TCPTableEntry* socket)
+{
+	return true;
 }
 
 /**
@@ -178,7 +192,8 @@ void Iperf3Server::OnRxUdpData(
  */
 void Iperf3Server::GracefulDisconnect([[maybe_unused]] int id, [[maybe_unused]] TCPTableEntry* socket)
 {
-	//nothing to do for now
+	m_state[id].Clear();
+	m_tcp.CloseSocket(socket);
 }
 
 /**
@@ -241,13 +256,53 @@ bool Iperf3Server::OnRxEnd(int id, TCPTableEntry* socket)
 	}
 
 	//All done, now in EXCHANGE_RESULTS state
-	g_log("Got END command from client\n");
+	//g_log("Got END command from client\n");
 	fifo.Pop(1);
 
 	//Exchange results
 	m_state[id].m_state = IperfConnectionState::EXCHANGE_RESULTS;
 	SendState(id, socket);
 
+	//Send the results (include some bogus fields since we don't have cpu usage accounting
+	auto segment = m_tcp.GetTxSegment(socket);
+	if(!segment)
+		return false;
+	auto payload = segment->Payload();
+
+	StringBuffer buf((char*)payload+4, 1400);
+	buf.Printf(
+		"{"
+		"\"cpu_util_total\":0.0,"
+		"\"cpu_util_user\":0.0,"
+		"\"cpu_util_system\":0.0,"
+		"\"sender_has_retransmits\":0,"
+		"\"streams\":[{"
+		"\"id\":1,"
+		"\"bytes\":%u,"
+		"\"retransmits\":18446744073709551615,"	// -1 casted to an unsigned int64, yes this is what iperf expects
+		"\"jitter\":0.0,"
+		"\"errors\":0.0,"
+		"\"packets\":%d,"
+		"\"start_time\":0,"
+		"\"end_time\":%d.%d"
+		"}]}",
+		m_state[id].m_sequence * m_state[id].m_len,
+		m_state[id].m_sequence,
+
+		//TODO: actual measured elapsed sending time?
+		m_state[id].m_time,
+		0
+	);
+
+	//Prepend length of json blob as big endian uint32
+	payload[0] = 0;
+	payload[1] = 0;
+	payload[2] = buf.length() >> 8;
+	payload[3] = buf.length() & 0xff;
+
+	//Ask client to display results
+	payload[4+buf.length()] = IperfConnectionState::DISPLAY_RESULTS;
+	m_tcp.SendTxSegment(socket, segment, buf.length() + 5);
 	return true;
 }
 
@@ -392,7 +447,7 @@ bool Iperf3Server::OnRxParamExchange(int id, TCPTableEntry* socket)
 		return true;
 	}
 
-	g_log("Setup done, asking client to open streams\n");
+	//g_log("Setup done, asking client to open streams\n");
 
 	return true;
 }
@@ -517,11 +572,12 @@ void Iperf3Server::FillPacket(int id, uint32_t* payload, uint32_t len)
 	payload[1] = __builtin_bswap32(us);
 
 	//Sequence number (for now only 32 bit)
-	payload[2] = __builtin_bswap32(m_state[id].m_sequence);
+	//Increment first so sequence numbers in packet can be one-based
+	uint32_t seq = ++m_state[id].m_sequence;
+	payload[2] = __builtin_bswap32(seq);
 	payload[3] = 0;
-	m_state[id].m_sequence ++;
 
-	//fill with sequential byte values
+	//fill rest of packet with garbage
 	for(uint32_t i=4; i<wordlen; i++)
 		payload[i] = i;
 }
