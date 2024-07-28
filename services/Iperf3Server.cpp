@@ -578,6 +578,7 @@ void Iperf3Server::FillPacket(int id, uint32_t* payload, uint32_t len)
 	payload[3] = 0;
 
 	//fill rest of packet with garbage
+	#pragma GCC unroll 4
 	for(uint32_t i=4; i<wordlen; i++)
 		payload[i] = i;
 }
