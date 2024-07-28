@@ -563,7 +563,7 @@ void Iperf3Server::FillPacket(int id, uint32_t* payload, uint32_t len)
 	if(len % 4)
 		wordlen ++;
 
-	//For now, fill seconds and nanoseconds with zeroes
+	//Fill seconds and nanoseconds using our timer
 	auto countval = g_logTimer.GetCount();
 	auto sec = countval / 10000;
 	auto ticks = (countval % 10000);
