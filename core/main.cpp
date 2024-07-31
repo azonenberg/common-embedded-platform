@@ -49,6 +49,15 @@ int main()
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
 	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
 
+	#ifdef HAVE_ITCM
+		//Copy ITCM code from flash to SRAM
+		//(NOTE: doing this here means we cannot call any functions in ITCM in global constructors)
+		//TODO: can we move either of these memcpy's earlier in the boot process?
+		memcpy(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
+		asm("dsb");
+		asm("isb");
+	#endif
+
 	//Re-enable interrupts since the bootloader (if used) may have turned them off
 	EnableInterrupts();
 
