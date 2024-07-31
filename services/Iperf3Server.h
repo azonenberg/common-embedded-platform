@@ -120,7 +120,6 @@ class Iperf3Server : public TCPServer<MAX_IPERF_CLIENTS, IperfConnectionState>
 {
 public:
 	Iperf3Server(TCPProtocol& tcp, UDPProtocol& udp);
-	virtual ~Iperf3Server();
 
 	//Event handlers
 	virtual void OnConnectionAccepted(TCPTableEntry* socket) override;

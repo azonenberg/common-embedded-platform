@@ -42,10 +42,6 @@ Iperf3Server::Iperf3Server(TCPProtocol& tcp, UDPProtocol& udp)
 {
 }
 
-Iperf3Server::~Iperf3Server()
-{
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Event handlers
 
@@ -440,7 +436,7 @@ bool Iperf3Server::OnRxParamExchange(int id, TCPTableEntry* socket)
 		return true;
 	}
 
-	if(m_state[id].m_len > 1480)
+	if(m_state[id].m_len >= 1480)
 	{
 		g_log(Logger::WARNING, "Requested block length is too big (we don't support IP fragmentation)\n");
 		DropConnection(id, socket);
