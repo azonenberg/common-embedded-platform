@@ -515,6 +515,9 @@ void Iperf3Server::OnJsonConfigField(int id, const char* name, const char* value
 	//Ignore pacing_timer and client_version
 }
 
+#ifdef HAVE_ITCM
+__attribute__((section(".tcmtext")))
+#endif
 void Iperf3Server::SendDataOnActiveStreams()
 {
 	//Check if any of our sockets are in TEST_RUNNING
@@ -542,6 +545,9 @@ void Iperf3Server::SendDataOnActiveStreams()
 	}
 }
 
+#ifdef HAVE_ITCM
+__attribute__((section(".tcmtext")))
+#endif
 void Iperf3Server::SendDataOnStream(int id, TCPTableEntry* socket)
 {
 	auto upack = m_udp.GetTxPacket(socket->m_remoteIP);
@@ -553,6 +559,9 @@ void Iperf3Server::SendDataOnStream(int id, TCPTableEntry* socket)
 	m_udp.SendTxPacket(upack, IPERF3_PORT, m_state[id].m_clientPort, len);
 }
 
+#ifdef HAVE_ITCM
+__attribute__((section(".tcmtext")))
+#endif
 void Iperf3Server::FillPacket(int id, uint32_t* payload, uint32_t len)
 {
 	uint32_t wordlen = len/4;
