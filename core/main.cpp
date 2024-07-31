@@ -44,7 +44,7 @@ KVS* g_kvs = nullptr;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Application entry point
 
-int main()
+extern "C" void hardware_init_hook()
 {
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
 	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
@@ -58,6 +58,14 @@ int main()
 		asm("isb");
 	#endif
 
+	//Initialize the floating point unit
+	#ifdef STM32H7
+		SCB.CPACR |= ((3UL << 20U)|(3UL << 22U));
+	#endif
+}
+
+int main()
+{
 	//Re-enable interrupts since the bootloader (if used) may have turned them off
 	EnableInterrupts();
 
