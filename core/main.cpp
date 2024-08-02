@@ -51,8 +51,6 @@ extern "C" void hardware_init_hook()
 
 	#ifdef HAVE_ITCM
 		//Copy ITCM code from flash to SRAM
-		//(NOTE: doing this here means we cannot call any functions in ITCM in global constructors)
-		//TODO: can we move either of these memcpy's earlier in the boot process?
 		memcpy(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
 		asm("dsb");
 		asm("isb");
