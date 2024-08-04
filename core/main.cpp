@@ -57,7 +57,7 @@ extern "C" void hardware_init_hook()
 	#endif
 
 	//Initialize the floating point unit
-	#ifdef STM32H7
+	#if defined(STM32H735) || defined(STM32L431)
 		SCB.CPACR |= ((3UL << 20U)|(3UL << 22U));
 	#endif
 }
