@@ -27,23 +27,75 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_common_h
-#define supervisor_common_h
+#ifndef ResetDescriptor_h
+#define ResetDescriptor_h
 
-#include <core/platform.h>
+/**
+	@brief Wrapper for a reset pin which may be active high or low
+ */
+class ResetDescriptor
+{
+public:
+	ResetDescriptor(GPIOPin& pin, const char* name)
+	: m_pin(pin)
+	, m_name(name)
+	{}
 
-#include <peripheral/ADC.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
+	virtual void Assert() =0;
+	virtual void Deassert() =0;
 
-#include <embedded-utils/FIFO.h>
-#include <embedded-utils/StringBuffer.h>
+	virtual bool IsReady()
+	{ return true; }
 
-extern char g_version[20];
-extern char g_ibcSwVersion[20];
-extern char g_ibcHwVersion[20];
+	const char* GetName() const
+	{ return m_name; }
 
-void PowerOn();
-void PanicShutdown();
+protected:
+	GPIOPin& m_pin;
+	const char* m_name;
+};
+
+/**
+	@brief An active-low reset
+ */
+class ActiveLowResetDescriptor : public ResetDescriptor
+{
+public:
+	ActiveLowResetDescriptor(GPIOPin& pin, const char* name)
+	: ResetDescriptor(pin, name)
+	{ m_pin = 0; }	//don't use Assert() since it logs
+					//and we might not have the logger set up yet in global constructors
+
+	virtual void Assert() override
+	{
+		g_log("Asserting %s reset\n", m_name);
+		m_pin = 0;
+	}
+
+	virtual void Deassert() override
+	{
+		g_log("Releasing %s reset\n", m_name);
+		m_pin = 1;
+	}
+};
+
+/**
+	@brief An active-low reset plus an active-high signal that's asserted when the device is operational
+ */
+class ActiveLowResetDescriptorWithActiveHighDone : public ActiveLowResetDescriptor
+{
+public:
+	ActiveLowResetDescriptorWithActiveHighDone(GPIOPin& rst, GPIOPin& done, const char* name)
+	: ActiveLowResetDescriptor(rst, name)
+	, m_done(done)
+	{}
+
+	virtual bool IsReady() override
+	{ return m_done; }
+
+protected:
+	GPIOPin& m_done;
+};
+
 
 #endif

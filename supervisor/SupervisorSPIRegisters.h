@@ -27,23 +27,54 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_common_h
-#define supervisor_common_h
+/**
+	@file
+	@author	Andrew D. Zonenberg
+	@brief	SPI register definitions for supervisor
+ */
+#ifndef SupervisorSPIRegisters_h
+#define SupervisorSPIRegisters_h
 
-#include <core/platform.h>
+enum superregs_t
+{
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// System identification
 
-#include <peripheral/ADC.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
+	//Present in all versions
+	SUPER_REG_VERSION		= 0x00,		//Our version string
+	SUPER_REG_IBCVERSION	= 0x01,		//IBC version string
 
-#include <embedded-utils/FIFO.h>
-#include <embedded-utils/StringBuffer.h>
+	//Not present in legacy IBC
+	SUPER_REG_IBCHWVERSION	= 0x02,		//IBC hardware version string
 
-extern char g_version[20];
-extern char g_ibcSwVersion[20];
-extern char g_ibcHwVersion[20];
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// IBC sensors
 
-void PowerOn();
-void PanicShutdown();
+	SUPER_REG_IBCVIN		= 0x10,		//IBC input voltage (nominal 48)
+	SUPER_REG_IBCIIN		= 0x11,		//IBC input current
+	SUPER_REG_IBCTEMP		= 0x12,		//IBC temperature measured near the converter
+	SUPER_REG_IBCVOUT		= 0x13,		//IBC output voltage (nominal 12)
+	SUPER_REG_IBCIOUT		= 0x14,		//IBC output current
+	SUPER_REG_IBCVSENSE		= 0x15,		//IBC sense voltage (nominal 12)
+
+	//Not present in legacy IBC
+	SUPER_REG_IBCMCUTEMP	= 0x16,		//IBC temperature measured at the MCU
+	SUPER_REG_IBC3V3		= 0x17,		//3V3_SB rail measured at the IBC MCU
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Supervisor MCU sensors
+
+	SUPER_REG_MCUTEMP		= 0x18,		//Logic board temperature measured at the supervisor
+	SUPER_REG_3V3			= 0x19		//3V3_SB rail measured at the supervisor
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Register IDs 0x1a to 3f available
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Registers 0x40 - 0x7f reserved for future OTA firmware update capability
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Registers 0x80 - 0xff reserved for application specific functionality (will not be used by common code)
+};
 
 #endif

@@ -27,23 +27,118 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_common_h
-#define supervisor_common_h
+#ifndef RailDescriptor_h
+#define RailDescriptor_h
 
-#include <core/platform.h>
+/**
+	@brief Base class for control signals for a single power rail
+ */
+class RailDescriptor
+{
+public:
 
-#include <peripheral/ADC.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
+	RailDescriptor(const char* name)
+		: m_name(name)
+	{}
 
-#include <embedded-utils/FIFO.h>
-#include <embedded-utils/StringBuffer.h>
+	///@brief Turns on the rail, returns true on success
+	virtual bool TurnOn() =0;
 
-extern char g_version[20];
-extern char g_ibcSwVersion[20];
-extern char g_ibcHwVersion[20];
+	///@brief Turns off the rail
+	virtual void TurnOff() =0;
 
-void PowerOn();
-void PanicShutdown();
+protected:
+	const char* m_name;
+};
+
+/**
+	@brief A power rail that has an active-high enable line, but no feedback on whether it's up
+ */
+class RailDescriptorWithEnable : public RailDescriptor
+{
+public:
+
+	/**
+		@brief Creates a new rail descriptor
+
+		@param name		Human readable rail name for logging
+		@param enable	Enable pin (set high to turn on power)
+		@param timer	Timer to use for sequencing delays
+		@param delay	Delay, in timer ticks, after turning on this rail before doing anything else
+	 */
+	RailDescriptorWithEnable(const char* name, GPIOPin& enable, Timer& timer, uint16_t delay)
+		: RailDescriptor(name)
+		, m_enable(enable)
+		, m_timer(timer)
+		, m_delay(delay)
+	{
+		//Turn off immediately
+		m_enable = 0;
+	}
+
+	virtual bool TurnOn() override
+	{
+		g_log("Turning on %s\n", m_name);
+		m_enable = 1;
+		m_timer.Sleep(m_delay);
+		return true;
+	};
+
+	virtual void TurnOff() override
+	{ m_enable = 0; };
+
+protected:
+	GPIOPin& m_enable;
+	Timer& m_timer;
+	uint16_t m_delay;
+};
+
+/**
+	@brief A power rail that has an active-high enable line and an active-high PGOOD line
+ */
+class RailDescriptorWithEnableAndPGood : public RailDescriptorWithEnable
+{
+public:
+	/**
+		@brief Creates a new rail descriptor
+
+		@param name		Human readable rail name for logging
+		@param enable	Enable pin (set high to turn on power)
+		@param pgood	Enable pin (set high to turn on power)
+		@param timer	Timer to use for sequencing delays
+		@param timeout	Timeout, in timer ticks, at which point the rail is expected to have come up
+	 */
+	RailDescriptorWithEnableAndPGood(const char* name, GPIOPin& enable, GPIOPin& pgood, Timer& timer, uint16_t timeout)
+		: RailDescriptorWithEnable(name, enable, timer, timeout)
+		, m_pgood(pgood)
+	{
+		//Turn off immediately
+		m_enable = 0;
+	}
+
+	virtual bool TurnOn() override
+	{
+		g_log("Turning on %s\n", m_name);
+
+		m_enable = 1;
+
+		for(uint32_t i=0; i<m_delay; i++)
+		{
+			if(m_pgood)
+				return true;
+			m_timer.Sleep(1);
+		}
+
+		if(!m_pgood)
+		{
+			g_log(Logger::ERROR, "Rail %s failed to come up", m_name);
+			return false;
+		}
+		return true;
+	};
+
+protected:
+	GPIOPin& m_pgood;
+};
 
 #endif
