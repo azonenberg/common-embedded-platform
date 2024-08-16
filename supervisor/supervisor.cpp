@@ -28,3 +28,66 @@
 ***********************************************************************************************************************/
 
 #include "supervisor-common.h"
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Globals
+
+//Addresses on the management I2C bus
+const uint8_t g_tempI2cAddress = 0x90;
+const uint8_t g_ibcI2cAddress = 0x42;
+
+//The ADC (can't be initialized before InitClocks() so can't be a global object)
+ADC* g_adc = nullptr;
+
+//IBC version strings
+char g_ibcSwVersion[20] = {0};
+char g_ibcHwVersion[20] = {0};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Hardware initialization
+
+void Super_InitI2C()
+{
+	g_log("Initializing IBC I2C interface\n");
+
+	//Initialize the I2C then wait a bit longer
+	//(i2c pin states prior to init are unknown)
+	g_logTimer.Sleep(100);
+	g_i2c.Reset();
+	g_logTimer.Sleep(100);
+
+	//Set temperature sensor to max resolution
+	//(if it doesn't respond, the i2c is derped out so reset and try again)
+	for(int i=0; i<5; i++)
+	{
+		uint8_t cmd[3] = {0x01, 0x60, 0x00};
+		if(g_i2c.BlockingWrite(g_tempI2cAddress, cmd, sizeof(cmd)))
+			break;
+
+		g_log(
+			Logger::WARNING,
+			"Failed to initialize I2C temp sensor at 0x%02x, resetting and trying again\n",
+			g_tempI2cAddress);
+
+		g_i2c.Reset();
+		g_logTimer.Sleep(100);
+	}
+}
+
+void Super_InitIBC()
+{
+	g_log("Connecting to IBC\n");
+	LogIndenter li(g_log);
+
+	//Wait a while to make sure the IBC is booted before we come up
+	//(both us and the IBC come up off 3V3_SB as soon as it's up, with no sequencing)
+	g_logTimer.Sleep(2500);
+
+	g_i2c.BlockingWrite8(g_ibcI2cAddress, IBC_REG_VERSION);
+	g_i2c.BlockingRead(g_ibcI2cAddress, (uint8_t*)g_ibcSwVersion, sizeof(g_ibcSwVersion));
+	g_log("IBC firmware version %s\n", g_ibcSwVersion);
+
+	g_i2c.BlockingWrite8(g_ibcI2cAddress, IBC_REG_HW_VERSION);
+	g_i2c.BlockingRead(g_ibcI2cAddress, (uint8_t*)g_ibcHwVersion, sizeof(g_ibcHwVersion));
+	g_log("IBC hardware version %s\n", g_ibcHwVersion);
+}

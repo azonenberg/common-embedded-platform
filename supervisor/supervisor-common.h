@@ -39,11 +39,20 @@
 #include <embedded-utils/FIFO.h>
 #include <embedded-utils/StringBuffer.h>
 
+//TODO: fix this path somehow?
+#include "../../../common-ibc/firmware/main/regids.h"
+
 extern char g_version[20];
 extern char g_ibcSwVersion[20];
 extern char g_ibcHwVersion[20];
 
-void PowerOn();
-void PanicShutdown();
+extern const uint8_t g_tempI2cAddress;
+extern const uint8_t g_ibcI2cAddress;
+
+extern ADC* g_adc;
+extern I2C g_i2c;
+
+void Super_InitI2C();
+void Super_InitIBC();
 
 #endif

@@ -27,77 +27,76 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef ResetDescriptor_h
-#define ResetDescriptor_h
+#ifndef PowerResetSupervisor_h
+#define PowerResetSupervisor_h
 
-#include <peripheral/GPIO.h>
+#include "RailDescriptor.h"
+#include "ResetDescriptor.h"
+#include <etl/vector.h>
 
 /**
-	@brief Wrapper for a reset pin which may be active high or low
+	@brief Top level control class for supervisor logic
  */
-class ResetDescriptor
+class PowerResetSupervisor
 {
 public:
-	ResetDescriptor(GPIOPin& pin, const char* name)
-	: m_pin(pin)
-	, m_name(name)
+	PowerResetSupervisor(etl::ivector<RailDescriptor*>& rails, etl::ivector<ResetDescriptor*>& resets)
+		: m_railSequence(rails)
+		, m_resetSequence(resets)
+		, m_powerOn(false)
+		, m_resetsDone(false)
+		, m_resetSequenceIndex(0)
 	{}
 
-	virtual void Assert() =0;
-	virtual void Deassert() =0;
+	bool IsPowerOn()
+	{ return m_powerOn; }
 
-	virtual bool IsReady()
-	{ return true; }
+	bool IsResetsDone()
+	{ return m_resetsDone; }
 
-	const char* GetName() const
-	{ return m_name; }
+	///@brief Shuts down all rails in reverse order but without any added sequencing delays
+	void PanicShutdown();
 
-protected:
-	GPIOPin& m_pin;
-	const char* m_name;
-};
+	void PowerOn();
+	void PowerOff();
 
-/**
-	@brief An active-low reset
- */
-class ActiveLowResetDescriptor : public ResetDescriptor
-{
-public:
-	ActiveLowResetDescriptor(GPIOPin& pin, const char* name)
-	: ResetDescriptor(pin, name)
-	{ m_pin = 0; }	//don't use Assert() since it logs
-					//and we might not have the logger set up yet in global constructors
-
-	virtual void Assert() override
+	/**
+		@brief Called each iteration through the main loop
+	 */
+	void Iteration()
 	{
-		g_log("Asserting %s reset\n", m_name);
-		m_pin = 0;
+		if(m_powerOn)
+		{
+			UpdateResets();
+			//TODO: detect runtime power failures
+		}
 	}
 
-	virtual void Deassert() override
-	{
-		g_log("Releasing %s reset\n", m_name);
-		m_pin = 1;
-	}
-};
-
-/**
-	@brief An active-low reset plus an active-high signal that's asserted when the device is operational
- */
-class ActiveLowResetDescriptorWithActiveHighDone : public ActiveLowResetDescriptor
-{
-public:
-	ActiveLowResetDescriptorWithActiveHighDone(GPIOPin& rst, GPIOPin& done, const char* name)
-	: ActiveLowResetDescriptor(rst, name)
-	, m_done(done)
-	{}
-
-	virtual bool IsReady() override
-	{ return m_done; }
-
 protected:
-	GPIOPin& m_done;
-};
 
+	void UpdateResets();
+
+	///@brief Called by PanicShutdown() when there's a fatal failure
+	virtual void OnFault()
+	{
+		while(1)
+		{}
+	};
+
+	///@brief The rail sequence
+	etl::ivector<RailDescriptor*>& m_railSequence;
+
+	///@brief The reset sequence
+	etl::ivector<ResetDescriptor*>& m_resetSequence;
+
+	///@brief True if power is all the way on
+	bool m_powerOn;
+
+	///@brief True if all resets are currently up
+	bool m_resetsDone;
+
+	///@brief Index of the currently active line in the reset state machine
+	size_t m_resetSequenceIndex;
+};
 
 #endif

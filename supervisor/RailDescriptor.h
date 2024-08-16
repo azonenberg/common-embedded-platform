@@ -30,6 +30,8 @@
 #ifndef RailDescriptor_h
 #define RailDescriptor_h
 
+#include <peripheral/GPIO.h>
+
 /**
 	@brief Base class for control signals for a single power rail
  */

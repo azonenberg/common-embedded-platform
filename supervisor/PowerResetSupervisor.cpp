@@ -27,77 +27,114 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef ResetDescriptor_h
-#define ResetDescriptor_h
+#include <core/platform.h>
+#include <supervisor/PowerResetSupervisor.h>
 
-#include <peripheral/GPIO.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Fault handling paths
+
+void PowerResetSupervisor::PanicShutdown()
+{
+	//Shut down all rails in reverse order
+	for(int i = m_railSequence.size()-1; i >= 0; i--)
+		m_railSequence[i]->TurnOff();
+
+	//Assert all resets (don't care about order, we're powered down anyway)
+	for(auto r : m_resetSequence)
+		r->Assert();
+
+	//Clear status flags to indicate we're not running
+	m_powerOn = false;
+	m_resetsDone = false;
+	m_resetSequenceIndex = 0;
+
+	g_log("Panic shutdown completed\n");
+
+	//Let the base class do any other processing
+	OnFault();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Normal on/off path
 
 /**
-	@brief Wrapper for a reset pin which may be active high or low
+	@brief Turn on power, blocking until it's fully up
  */
-class ResetDescriptor
+void PowerResetSupervisor::PowerOn()
 {
-public:
-	ResetDescriptor(GPIOPin& pin, const char* name)
-	: m_pin(pin)
-	, m_name(name)
-	{}
+	g_log("Turning power on\n");
 
-	virtual void Assert() =0;
-	virtual void Deassert() =0;
-
-	virtual bool IsReady()
-	{ return true; }
-
-	const char* GetName() const
-	{ return m_name; }
-
-protected:
-	GPIOPin& m_pin;
-	const char* m_name;
-};
-
-/**
-	@brief An active-low reset
- */
-class ActiveLowResetDescriptor : public ResetDescriptor
-{
-public:
-	ActiveLowResetDescriptor(GPIOPin& pin, const char* name)
-	: ResetDescriptor(pin, name)
-	{ m_pin = 0; }	//don't use Assert() since it logs
-					//and we might not have the logger set up yet in global constructors
-
-	virtual void Assert() override
+	//Turn on all rails and wait for them all to come up
+	for(auto rail : m_railSequence)
 	{
-		g_log("Asserting %s reset\n", m_name);
-		m_pin = 0;
+		LogIndenter li(g_log);
+		if(!rail->TurnOn())
+		{
+			PanicShutdown();
+			return;
+		}
 	}
 
-	virtual void Deassert() override
-	{
-		g_log("Releasing %s reset\n", m_name);
-		m_pin = 1;
-	}
-};
+	//Start the reset sequence
+	g_log("Releasing resets\n");
+	m_powerOn = true;
+	m_resetsDone = false;
+	m_resetSequenceIndex = 0;
+	if(!m_resetSequence.empty())
+		m_resetSequence[0]->Deassert();
+}
 
 /**
-	@brief An active-low reset plus an active-high signal that's asserted when the device is operational
+	@brief Turn off power, blocking until it's fully down
  */
-class ActiveLowResetDescriptorWithActiveHighDone : public ActiveLowResetDescriptor
+void PowerResetSupervisor::PowerOff()
 {
-public:
-	ActiveLowResetDescriptorWithActiveHighDone(GPIOPin& rst, GPIOPin& done, const char* name)
-	: ActiveLowResetDescriptor(rst, name)
-	, m_done(done)
-	{}
+	g_log(Logger::ERROR, "Turning power off: NOT IMPLEMENTED\n");
+	while(1)
+	{
+	}
+}
 
-	virtual bool IsReady() override
-	{ return m_done; }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Reset state machine
 
-protected:
-	GPIOPin& m_done;
-};
+/**
+	@brief Run the reset state machine
+ */
+void PowerResetSupervisor::UpdateResets()
+{
+	//Actively running reset sequence. Time to advance the sequence?
+	if(!m_resetsDone && m_resetSequence[m_resetSequenceIndex]->IsReady())
+	{
+		m_resetSequenceIndex ++;
 
+		//Done with all resets? We're OK
+		if(m_resetSequenceIndex >= m_resetSequence.size())
+		{
+			g_log("Reset sequence complete\n");
+			m_resetsDone = true;
+		}
 
-#endif
+		//Nope, clear the next reset in line
+		else
+			m_resetSequence[m_resetSequenceIndex]->Deassert();
+	}
+
+	//Check all devices earlier in the reset sequence and see if any went down.
+	//If so, back up to that stage and resume the sequence
+	for(size_t i=0; i<m_resetSequenceIndex; i++)
+	{
+		if(!m_resetSequence[i]->IsReady())
+		{
+			g_log("%s is no longer ready, restarting reset sequence from that point\n",
+				m_resetSequence[i]->GetName());
+			m_resetSequenceIndex = i;
+			m_resetsDone = false;
+
+			//Assert all subsequent resets
+			for(size_t j=i+1; j<m_resetSequence.size(); j++)
+				m_resetSequence[j]->Assert();
+			break;
+		}
+	}
+}
