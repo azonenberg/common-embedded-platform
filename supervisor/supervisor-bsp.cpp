@@ -27,59 +27,65 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_common_h
-#define supervisor_common_h
+/**
+	@file
+	@brief Contains BSP helpers that are common to most uses of the supervisor
 
-#include <core/platform.h>
+	Set clocks to max using internal oscillator, initialize the log, etc.
 
-#include <peripheral/ADC.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/SPI.h>
-#include <peripheral/UART.h>
+	But nothing actually board specific that might vary with pinout
+ */
 
-#include <embedded-utils/FIFO.h>
-#include <embedded-utils/StringBuffer.h>
+#include "supervisor-common.h"
+#include <peripheral/Power.h>
 
-#include <bootloader/bootloader-common.h>
-#include <bootloader/BootloaderAPI.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Common global hardware config used by both bootloader and application
 
-//TODO: fix this path somehow?
-#include "../../../common-ibc/firmware/main/regids.h"
+//APB1 is 80 MHz
+//Divide down to get 10 kHz ticks (note TIM2 is double rate)
+Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 16000);
 
-extern char g_version[20];
-extern char g_ibcSwVersion[20];
-extern char g_ibcHwVersion[20];
+///@brief The battery-backed RAM used to store state across power cycles
+volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
 
-extern const uint8_t g_tempI2cAddress;
-extern const uint8_t g_ibcI2cAddress;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BSP init
 
-extern ADC* g_adc;
-extern I2C g_i2c;
+void BSP_InitPower()
+{
+	Power::ConfigureLDO(RANGE_VOS1);
+}
 
-void Super_Init();
-void Super_InitI2C();
-void Super_InitIBC();
-void Super_InitADC();
+void BSP_InitClocks()
+{
+	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
+	//A bit of extra latency is fine, the CPU being faster than flash is not.
+	Flash::SetConfiguration(80, RANGE_VOS1);
 
-//Global hardware config used by both app and bootloader
-extern UART<16, 256> g_uart;
-extern SPI<64, 64> g_spi;
-extern GPIOPin* g_spiCS;
+	RCCHelper::InitializePLLFromHSI16(
+		2,	//Pre-divide by 2 (PFD frequency 8 MHz)
+		20,	//VCO at 8*20 = 160 MHz
+		4,	//Q divider is 40 MHz (nominal 48 but we're not using USB so this is fine)
+		2,	//R divider is 80 MHz (fmax for CPU)
+		1,	//no further division from SYSCLK to AHB (80 MHz)
+		1,	//APB1 at 80 MHz
+		1);	//APB2 at 80 MHz
 
-extern volatile BootloaderBBRAM* g_bbram;
+	//Select ADC clock as sysclk
+	RCC.CCIPR |= 0x3000'0000;
+}
 
-extern uint16_t g_ibcTemp;
-extern uint16_t g_ibc3v3;
-extern uint16_t g_ibcMcuTemp;
-extern uint16_t g_vin48;
-extern uint16_t g_vout12;
-extern uint16_t g_voutsense;
-extern uint16_t g_iin;
-extern uint16_t g_iout;
-extern uint16_t g_3v3Voltage;
-extern uint16_t g_mcutemp;
+void BSP_InitLog()
+{
+	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
+	g_logTimer.Sleep(100);
 
-bool PollIBCSensors();
+	//Clear screen and move cursor to X0Y0 (but only in bootloader)
+	#ifndef NO_CLEAR_SCREEN
+	g_uart.Printf("\x1b[2J\x1b[0;0H");
+	#endif
 
-#endif
+	//Start the logger
+	g_log.Initialize(&g_uart, &g_logTimer);
+}

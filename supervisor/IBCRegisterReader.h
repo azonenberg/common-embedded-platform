@@ -27,59 +27,37 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_common_h
-#define supervisor_common_h
+#ifndef IBCRegisterReader_h
+#define IBCRegisterReader_h
 
-#include <core/platform.h>
+/**
+	@brief Nonblocking wrapper for reading an IBC register
+ */
+class IBCRegisterReader
+{
+public:
+	IBCRegisterReader()
+	: m_state(STATE_IDLE)
+	, m_tmpval(0)
+	{}
 
-#include <peripheral/ADC.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/SPI.h>
-#include <peripheral/UART.h>
+	bool ReadRegisterNonblocking(uint8_t regid, uint16_t& regval);
 
-#include <embedded-utils/FIFO.h>
-#include <embedded-utils/StringBuffer.h>
+	void Reset()
+	{ m_state = STATE_IDLE; }
 
-#include <bootloader/bootloader-common.h>
-#include <bootloader/BootloaderAPI.h>
+protected:
 
-//TODO: fix this path somehow?
-#include "../../../common-ibc/firmware/main/regids.h"
+	enum state_t
+	{
+		STATE_IDLE,
+		STATE_ADDR_START,
+		STATE_REGID,
+		STATE_DATA_LO,
+		STATE_DATA_HI
+	} m_state;
 
-extern char g_version[20];
-extern char g_ibcSwVersion[20];
-extern char g_ibcHwVersion[20];
-
-extern const uint8_t g_tempI2cAddress;
-extern const uint8_t g_ibcI2cAddress;
-
-extern ADC* g_adc;
-extern I2C g_i2c;
-
-void Super_Init();
-void Super_InitI2C();
-void Super_InitIBC();
-void Super_InitADC();
-
-//Global hardware config used by both app and bootloader
-extern UART<16, 256> g_uart;
-extern SPI<64, 64> g_spi;
-extern GPIOPin* g_spiCS;
-
-extern volatile BootloaderBBRAM* g_bbram;
-
-extern uint16_t g_ibcTemp;
-extern uint16_t g_ibc3v3;
-extern uint16_t g_ibcMcuTemp;
-extern uint16_t g_vin48;
-extern uint16_t g_vout12;
-extern uint16_t g_voutsense;
-extern uint16_t g_iin;
-extern uint16_t g_iout;
-extern uint16_t g_3v3Voltage;
-extern uint16_t g_mcutemp;
-
-bool PollIBCSensors();
+	uint8_t m_tmpval;
+};
 
 #endif

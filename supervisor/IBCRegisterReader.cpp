@@ -27,59 +27,61 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef supervisor_common_h
-#define supervisor_common_h
+#include "supervisor-common.h"
+#include "IBCRegisterReader.h"
 
-#include <core/platform.h>
+/**
+	@brief Nonblocking read of a register from the IBC
 
-#include <peripheral/ADC.h>
-#include <peripheral/GPIO.h>
-#include <peripheral/I2C.h>
-#include <peripheral/SPI.h>
-#include <peripheral/UART.h>
+	Call this function periodically
+ */
+bool IBCRegisterReader::ReadRegisterNonblocking(uint8_t regid, uint16_t& regval)
+{
+	switch(m_state)
+	{
+		//Start a new register access
+		case STATE_IDLE:
+			g_i2c.NonblockingStart(1, g_ibcI2cAddress, false);
+			m_state = STATE_ADDR_START;
+			break;
 
-#include <embedded-utils/FIFO.h>
-#include <embedded-utils/StringBuffer.h>
+		//Wait for the start sequence to finish
+		case STATE_ADDR_START:
+			if(g_i2c.IsStartDone())
+			{
+				g_i2c.NonblockingWrite(regid);
+				m_state = STATE_REGID;
+			}
+			break;
 
-#include <bootloader/bootloader-common.h>
-#include <bootloader/BootloaderAPI.h>
+		//Wait for register ID to send
+		case STATE_REGID:
+			if(g_i2c.IsWriteDone())
+			{
+				//Start the read
+				g_i2c.NonblockingStart(2, g_ibcI2cAddress, true);
+				m_state = STATE_DATA_LO;
+			}
+			break;
 
-//TODO: fix this path somehow?
-#include "../../../common-ibc/firmware/main/regids.h"
+		//Wait for the first data byte to be ready
+		case STATE_DATA_LO:
+			if(g_i2c.IsReadReady())
+			{
+				m_tmpval = g_i2c.GetReadData();
+				m_state = STATE_DATA_HI;
+			}
+			break;
 
-extern char g_version[20];
-extern char g_ibcSwVersion[20];
-extern char g_ibcHwVersion[20];
+		//Wait for the second data byte to be ready
+		case STATE_DATA_HI:
+			if(g_i2c.IsReadReady())
+			{
+				regval = g_i2c.GetReadData() | (m_tmpval << 8);
+				m_state = STATE_IDLE;
+				return true;
+			}
+	}
 
-extern const uint8_t g_tempI2cAddress;
-extern const uint8_t g_ibcI2cAddress;
-
-extern ADC* g_adc;
-extern I2C g_i2c;
-
-void Super_Init();
-void Super_InitI2C();
-void Super_InitIBC();
-void Super_InitADC();
-
-//Global hardware config used by both app and bootloader
-extern UART<16, 256> g_uart;
-extern SPI<64, 64> g_spi;
-extern GPIOPin* g_spiCS;
-
-extern volatile BootloaderBBRAM* g_bbram;
-
-extern uint16_t g_ibcTemp;
-extern uint16_t g_ibc3v3;
-extern uint16_t g_ibcMcuTemp;
-extern uint16_t g_vin48;
-extern uint16_t g_vout12;
-extern uint16_t g_voutsense;
-extern uint16_t g_iin;
-extern uint16_t g_iout;
-extern uint16_t g_3v3Voltage;
-extern uint16_t g_mcutemp;
-
-bool PollIBCSensors();
-
-#endif
+	return false;
+}
