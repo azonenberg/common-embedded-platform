@@ -119,25 +119,6 @@ void Super_InitIBC()
 	g_log("IBC hardware version %s\n", g_ibcHwVersion);
 }
 
-void InitADC()
-{
-	g_log("Initializing ADC\n");
-	LogIndenter li(g_log);
-
-	//Run ADC at sysclk/10 (10 MHz)
-	static ADC adc(&_ADC, &_ADC.chans[0], 10);
-	g_adc = &adc;
-	g_logTimer.Sleep(20);
-
-	//Set up sampling time. Need minimum 5us to accurately read temperature
-	//With ADC clock of 8 MHz = 125 ns per cycle this is 40 cycles
-	//Max 8 us / 64 clocks for input channels
-	//47.5 clocks fits both requirements, use it for everything
-	int tsample = 95;
-	for(int i=0; i <= 18; i++)
-		adc.SetSampleTime(tsample, i);
-}
-
 void Super_InitADC()
 {
 	g_log("Initializing ADC\n");
