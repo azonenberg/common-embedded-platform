@@ -54,13 +54,16 @@ extern char g_ibcHwVersion[20];
 extern const uint8_t g_tempI2cAddress;
 extern const uint8_t g_ibcI2cAddress;
 
-extern ADC* g_adc;
 extern I2C g_i2c;
 
 void Super_Init();
 void Super_InitI2C();
 void Super_InitIBC();
+
+#ifdef HAVE_ADC
+extern ADC* g_adc;
 void Super_InitADC();
+#endif
 
 //Global hardware config used by both app and bootloader
 extern UART<16, 256> g_uart;

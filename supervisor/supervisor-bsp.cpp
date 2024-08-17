@@ -54,26 +54,32 @@ volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(
 
 void BSP_InitPower()
 {
-	Power::ConfigureLDO(RANGE_VOS1);
+	#ifdef STM32L431
+		Power::ConfigureLDO(RANGE_VOS1);
+	#endif
 }
 
 void BSP_InitClocks()
 {
-	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
-	//A bit of extra latency is fine, the CPU being faster than flash is not.
-	Flash::SetConfiguration(80, RANGE_VOS1);
+	#ifdef STM32L431
 
-	RCCHelper::InitializePLLFromHSI16(
-		2,	//Pre-divide by 2 (PFD frequency 8 MHz)
-		20,	//VCO at 8*20 = 160 MHz
-		4,	//Q divider is 40 MHz (nominal 48 but we're not using USB so this is fine)
-		2,	//R divider is 80 MHz (fmax for CPU)
-		1,	//no further division from SYSCLK to AHB (80 MHz)
-		1,	//APB1 at 80 MHz
-		1);	//APB2 at 80 MHz
+		//Configure the flash with wait states and prefetching before making any changes to the clock setup.
+		//A bit of extra latency is fine, the CPU being faster than flash is not.
+		Flash::SetConfiguration(80, RANGE_VOS1);
 
-	//Select ADC clock as sysclk
-	RCC.CCIPR |= 0x3000'0000;
+		RCCHelper::InitializePLLFromHSI16(
+			2,	//Pre-divide by 2 (PFD frequency 8 MHz)
+			20,	//VCO at 8*20 = 160 MHz
+			4,	//Q divider is 40 MHz (nominal 48 but we're not using USB so this is fine)
+			2,	//R divider is 80 MHz (fmax for CPU)
+			1,	//no further division from SYSCLK to AHB (80 MHz)
+			1,	//APB1 at 80 MHz
+			1);	//APB2 at 80 MHz
+
+		//Select ADC clock as sysclk
+		RCC.CCIPR |= 0x3000'0000;
+
+	#endif
 }
 
 void BSP_InitLog()

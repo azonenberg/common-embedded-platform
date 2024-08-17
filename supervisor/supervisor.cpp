@@ -38,8 +38,10 @@
 const uint8_t g_tempI2cAddress = 0x90;
 const uint8_t g_ibcI2cAddress = 0x42;
 
+#ifdef HAVE_ADC
 ///@brief The ADC (can't be initialized before InitClocks() so can't be a global object)
 ADC* g_adc = nullptr;
+#endif
 
 ///@brief Chip select pin for our SPI peripheral
 GPIOPin* g_spiCS = nullptr;
@@ -70,7 +72,10 @@ void Super_Init()
 {
 	Super_InitI2C();
 	Super_InitIBC();
+
+	#ifdef HAVE_ADC
 	Super_InitADC();
+	#endif
 }
 
 void Super_InitI2C()
@@ -119,6 +124,7 @@ void Super_InitIBC()
 	g_log("IBC hardware version %s\n", g_ibcHwVersion);
 }
 
+#ifdef HAVE_ADC
 void Super_InitADC()
 {
 	g_log("Initializing ADC\n");
@@ -137,6 +143,7 @@ void Super_InitADC()
 	for(int i=0; i <= 18; i++)
 		adc.SetSampleTime(tsample, i);
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IBC sensor interfacing
@@ -224,6 +231,8 @@ bool PollIBCSensors()
 				state ++;
 			break;
 
+		#ifdef HAVE_ADC
+
 		//Also read our own internal health sensors at this point in the rotation
 		//(should we rename this function PollHealthSensors or something?)
 		//TODO: nonblocking ADC accesses?
@@ -236,6 +245,8 @@ bool PollIBCSensors()
 			g_3v3Voltage = g_adc->GetSupplyVoltage();
 			state ++;
 			break;
+
+		#endif
 
 		//end of loop, wrap around
 		default:
