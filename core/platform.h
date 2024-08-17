@@ -50,6 +50,9 @@ extern KVS* g_kvs;
 void __attribute__((noreturn)) Reset();
 void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
 
+//Returns true in bootloader, false in application firmware
+bool IsBootloader();
+
 #include "bsp.h"
 
 #endif

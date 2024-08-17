@@ -40,6 +40,11 @@ const char* g_imageCRCKey = "firmware.crc";
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Initialization
 
+bool IsBootloader()
+{
+	return true;
+}
+
 void App_Init()
 {
 	g_log("Antikernel Labs bootloader (%s %s)\n", __DATE__, __TIME__);
