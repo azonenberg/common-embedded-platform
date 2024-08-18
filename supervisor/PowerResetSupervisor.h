@@ -68,13 +68,22 @@ public:
 		if(m_powerOn)
 		{
 			UpdateResets();
-			//TODO: detect runtime power failures
+			MonitorRails();
 		}
 	}
 
 protected:
 
 	void UpdateResets();
+	void MonitorRails();
+
+	///@brief Hook called at the end of the power-on sequence
+	virtual void OnPowerOn()
+	{}
+
+	///@brief Hook called at the end of the power-off sequence
+	virtual void OnPowerOff()
+	{}
 
 	///@brief Called by PanicShutdown() when there's a fatal failure
 	virtual void OnFault()

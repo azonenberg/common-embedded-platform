@@ -49,6 +49,13 @@ public:
 	///@brief Turns off the rail
 	virtual void TurnOff() =0;
 
+	///@brief True if the rail is currently on and within tolerance
+	virtual bool IsPowerGood()
+	{ return true; }
+
+	const char* GetName() const
+	{ return m_name; }
+
 protected:
 	const char* m_name;
 };
@@ -137,7 +144,10 @@ public:
 			return false;
 		}
 		return true;
-	};
+	}
+
+	virtual bool IsPowerGood() override
+	{ return m_pgood; }
 
 protected:
 	GPIOPin& m_pgood;

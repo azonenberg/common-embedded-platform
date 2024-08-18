@@ -82,6 +82,8 @@ void PowerResetSupervisor::PowerOn()
 	m_resetSequenceIndex = 0;
 	if(!m_resetSequence.empty())
 		m_resetSequence[0]->Deassert();
+
+	OnPowerOn();
 }
 
 /**
@@ -89,10 +91,25 @@ void PowerResetSupervisor::PowerOn()
  */
 void PowerResetSupervisor::PowerOff()
 {
-	g_log(Logger::ERROR, "Turning power off: NOT IMPLEMENTED\n");
-	while(1)
+	g_log("Turning power off\n");
+
+	//Assert all resets in reverse order
+	for(int i = m_resetSequence.size()-1; i >= 0; i--)
+		m_resetSequence[i]->Assert();
+
+	//Turn all rails off, waiting 1ms between them
+	for(int i = m_railSequence.size()-1; i >= 0; i--)
 	{
+		m_railSequence[i]->TurnOff();
+		g_logTimer.Sleep(10);
 	}
+
+	//Power is now off
+	m_powerOn = true;
+	m_resetsDone = false;
+	m_resetSequenceIndex = 0;
+
+	OnPowerOff();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -135,6 +152,22 @@ void PowerResetSupervisor::UpdateResets()
 			for(size_t j=i+1; j<m_resetSequence.size(); j++)
 				m_resetSequence[j]->Assert();
 			break;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Detect loss of power or rail failures and cleanly shut down
+
+void PowerResetSupervisor::MonitorRails()
+{
+	for(auto rail : m_railSequence)
+	{
+		if(!rail->IsPowerGood())
+		{
+			g_log(Logger::ERROR, "Rail %s power failure - panic shutdown\n", rail->GetName());
+			PanicShutdown();
+			return;
 		}
 	}
 }
