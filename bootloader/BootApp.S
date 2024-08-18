@@ -12,7 +12,8 @@ DoBootApplication:
 	str		r0, [r1, #0]
 
 	//Read the new stack pointer address
-	ldr		sp, [r0, #0]
+	ldr		r2, [r0, #0]
+	mov		sp, r2
 
 	//Jump to the application firmware
 	ldr		r1, [r0, #4]

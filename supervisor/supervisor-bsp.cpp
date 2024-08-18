@@ -42,12 +42,22 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Common global hardware config used by both bootloader and application
 
-//APB1 is 80 MHz
-//Divide down to get 10 kHz ticks (note TIM2 is double rate)
-Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 16000);
+#ifdef STM32L431
+	//APB1 is 80 MHz
+	//Divide down to get 10 kHz ticks (note TIM2 is double rate)
+	Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 16000);
+#elif defined(STM32L031)
+	//APB1 is 32 MHz
+	//Divide down to get 10 kHz ticks (note TIM2 is double rate)
+	Timer g_logTimer(&TIMER2, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 6400);
+#else
+	#error unknown target device
+#endif
 
-///@brief The battery-backed RAM used to store state across power cycles
-volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
+#ifdef HAVE_RTC
+	///@brief The battery-backed RAM used to store state across power cycles
+	volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BSP init
@@ -56,6 +66,11 @@ void BSP_InitPower()
 {
 	#ifdef STM32L431
 		Power::ConfigureLDO(RANGE_VOS1);
+	#elif defined(STM32L031)
+		RCCHelper::Enable(&PWR);
+		Power::ConfigureLDO(RANGE_VOS1);
+	#else
+		#error unknown target device
 	#endif
 }
 
@@ -79,6 +94,22 @@ void BSP_InitClocks()
 		//Select ADC clock as sysclk
 		RCC.CCIPR |= 0x3000'0000;
 
+	#elif defined(STM32L031)
+
+		//Configure the flash with wait states and prefetching before making any changes to the clock setup.
+		//A bit of extra latency is fine, the CPU being faster than flash is not.
+		Flash::SetConfiguration(32, RANGE_VOS1);
+
+		//Set operating frequency
+		RCCHelper::InitializePLLFromHSI16(
+			4,	//VCO at 16*4 = 64 MHz
+			2,	//CPU frequency is 64/2 = 32 MHz (max 32)
+			1,	//AHB at 32 MHz (max 32)
+			1,	//APB2 at 32 MHz (max 32)
+			1);	//APB1 at 32 MHz (max 32)
+
+	#else
+		#error unknown target device
 	#endif
 }
 

@@ -119,9 +119,14 @@ void Super_InitIBC()
 	g_i2c.BlockingRead(g_ibcI2cAddress, (uint8_t*)g_ibcSwVersion, sizeof(g_ibcSwVersion));
 	g_log("IBC firmware version %s\n", g_ibcSwVersion);
 
-	g_i2c.BlockingWrite8(g_ibcI2cAddress, IBC_REG_HW_VERSION);
-	g_i2c.BlockingRead(g_ibcI2cAddress, (uint8_t*)g_ibcHwVersion, sizeof(g_ibcHwVersion));
-	g_log("IBC hardware version %s\n", g_ibcHwVersion);
+	//hardware revs 0.3 and below don't have this register
+	#ifdef LEGACY_IBC
+		strncpy(g_ibcHwVersion, "0.3", sizeof(g_ibcHwVersion));
+	#else
+		g_i2c.BlockingWrite8(g_ibcI2cAddress, IBC_REG_HW_VERSION);
+		g_i2c.BlockingRead(g_ibcI2cAddress, (uint8_t*)g_ibcHwVersion, sizeof(g_ibcHwVersion));
+		g_log("IBC hardware version %s\n", g_ibcHwVersion);
+	#endif
 }
 
 #ifdef HAVE_ADC
@@ -130,18 +135,34 @@ void Super_InitADC()
 	g_log("Initializing ADC\n");
 	LogIndenter li(g_log);
 
-	//Run ADC at sysclk/10 (10 MHz)
-	static ADC adc(&_ADC, &_ADC.chans[0], 10);
-	g_adc = &adc;
-	g_logTimer.Sleep(20);
+	#ifdef STM32L431
+		//Run ADC at sysclk/10 (10 MHz)
+		static ADC adc(&_ADC, &_ADC.chans[0], 10);
 
-	//Set up sampling time. Need minimum 5us to accurately read temperature
-	//With ADC clock of 8 MHz = 125 ns per cycle this is 40 cycles
-	//Max 8 us / 64 clocks for input channels
-	//47.5 clocks fits both requirements, use it for everything
-	int tsample = 95;
-	for(int i=0; i <= 18; i++)
-		adc.SetSampleTime(tsample, i);
+		g_logTimer.Sleep(20);
+
+		//Set up sampling time. Need minimum 5us to accurately read temperature
+		//With ADC clock of 8 MHz = 125 ns per cycle this is 40 cycles
+		//Max 8 us / 64 clocks for input channels
+		//47.5 clocks fits both requirements, use it for everything
+		int tsample = 95;
+		for(int i=0; i <= 18; i++)
+			adc.SetSampleTime(tsample, i);
+
+	#elif defined(STM32L031)
+		//Enable ADC to run at PCLK/2 (8 MHz)
+		static ADC adc(&ADC1, 2);
+
+		//Read the temperature
+		//10us sampling time (80 ADC clocks) required for reading the temp sensor
+		//79.5 is close enough
+		adc.SetSampleTime(159);
+
+	#else
+		#error Unsupported ADC
+	#endif
+
+	g_adc = &adc;
 }
 #endif
 
@@ -221,15 +242,23 @@ bool PollIBCSensors()
 				state ++;
 			break;
 
-		case 6:
-			if(regreader.ReadRegisterNonblocking(IBC_REG_MCU_TEMP, g_ibcMcuTemp))
-				state ++;
-			break;
+		//v0.3 firmware lacks this
+		#ifndef LEGACY_IBC
+			case 6:
+				if(regreader.ReadRegisterNonblocking(IBC_REG_MCU_TEMP, g_ibcMcuTemp))
+					state ++;
+				break;
 
-		case 7:
-			if(regreader.ReadRegisterNonblocking(IBC_REG_3V3_SB, g_ibc3v3))
-				state ++;
-			break;
+			case 7:
+				if(regreader.ReadRegisterNonblocking(IBC_REG_3V3_SB, g_ibc3v3))
+					state ++;
+				break;
+		#else
+			case 6:
+			case 7:
+				state = 8;
+				break;
+		#endif
 
 		#ifdef HAVE_ADC
 
@@ -237,8 +266,13 @@ bool PollIBCSensors()
 		//(should we rename this function PollHealthSensors or something?)
 		//TODO: nonblocking ADC accesses?
 		case 8:
-			if(g_adc->GetTemperatureNonblocking(g_mcutemp))
-				state ++;
+			#ifdef STM32L431
+				if(g_adc->GetTemperatureNonblocking(g_mcutemp))
+					state ++;
+			#else
+				g_mcutemp = g_adc->GetTemperature();
+				state++;
+			#endif
 			break;
 
 		case 9:

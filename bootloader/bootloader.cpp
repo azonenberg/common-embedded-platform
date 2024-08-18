@@ -218,6 +218,8 @@ void EraseFlash(uint32_t* appVector)
 
 	#if defined(STM32L431)
 		const uint32_t eraseBlockSize	= 2 * 1024;
+	#elif defined(STM32L031)
+		const uint32_t eraseBlockSize	= 128;
 	#elif defined(STM32H735)
 		const uint32_t eraseBlockSize	= 128 * 1024;
 	#else

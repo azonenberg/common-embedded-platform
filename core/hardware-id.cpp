@@ -62,6 +62,8 @@ void __attribute__((weak)) BSP_DetectHardware()
 
 	#ifdef STM32L431
 		g_log("64 kB total SRAM, 1 kB EEPROM, 128 byte backup SRAM\n");
+	#elif defined(STM32L031)
+		g_log("8 kB total SRAM, 1 kB EEPROM, 20 byte backup SRAM\n");
 	#elif defined(STM32H735)
 		g_log("564 kB total SRAM, 128 kB DTCM, up to 256 kB ITCM, 4 kB backup SRAM\n");
 	#endif
@@ -88,6 +90,21 @@ void __attribute__((weak)) BSP_DetectHardware()
 			static_cast<char>((U_ID[2] >> 0) & 0xff),
 			'\0'
 		};
+	#elif defined(STM32L031)
+		waferNum = (U_ID[0] >> 24) & 0xff;
+		char waferLot[8] =
+		{
+			static_cast<char>((U_ID[0] >> 16) & 0xff),
+			static_cast<char>((U_ID[0] >> 8) & 0xff),
+			static_cast<char>((U_ID[0] >> 0) & 0xff),
+			static_cast<char>((U_ID[1] >> 24) & 0xff),
+			static_cast<char>((U_ID[1] >> 16) & 0xff),
+			static_cast<char>((U_ID[1] >> 8) & 0xff),
+			static_cast<char>((U_ID[1] >> 0) & 0xff),
+			'\0'
+		};
+		waferX = U_ID[2] >> 16;
+		waferY = U_ID[2] & 0xffff;
 	#else
 		//TODO: double check this is right ordering
 		char waferLot[8] =
@@ -132,7 +149,7 @@ const char* GetPackage(uint8_t pkg)
 
 const char* GetStepping(uint16_t rev)
 {
-	#if defined(STM32L4)
+	#if defined(STM32L4)	//L431
 		switch(rev)
 		{
 			case 0x1000:	return "A";
@@ -140,7 +157,16 @@ const char* GetStepping(uint16_t rev)
 			case 0x2001:	return "Y";
 			default:		return "(unknown)";
 		}
-	#elif defined(STM32H7)
+	#elif defined(STM32L0)	//L031
+		switch(rev)
+		{
+			case 0x1000:	return "A";
+			case 0x2000:	return "B";
+			case 0x2008:	return "Y";
+			case 0x2018:	return "X";
+			default:		return "(unknown)";
+		}
+	#elif defined(STM32H7)	//H735
 		switch(rev)
 		{
 			case 0x1000:	return "A";
@@ -161,6 +187,12 @@ const char* GetPartName([[maybe_unused]] uint16_t device)
 			case 0x435:	return "L43xxx/44xxx";
 			case 0x462:	return "L45xxx/46xxx";
 			case 0x464:	return "L41xxx/42xxx";
+			default:	return "(unknown)";
+		}
+	#elif defined(STM32L0)
+		switch(device)
+		{
+			case 0x425:	return "L031/041";
 			default:	return "(unknown)";
 		}
 	#elif defined(STM32H7)

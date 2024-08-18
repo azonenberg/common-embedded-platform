@@ -3,7 +3,7 @@
 ########################################################################################################################
 # Build types
 
-if(NOT CMAKE_BUILD_TYPE)
+if(NOT DEFINED CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 

@@ -1,6 +1,7 @@
 add_library(common-embedded-platform-supervisor STATIC
 	IBCRegisterReader.cpp
 	PowerResetSupervisor.cpp
+	SupervisorSPIServer.cpp
 	TempSensorReader.cpp
 	supervisor.cpp
 	supervisor-bsp.cpp

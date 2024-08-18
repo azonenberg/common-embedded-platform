@@ -27,120 +27,86 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef RailDescriptor_h
-#define RailDescriptor_h
+#include "supervisor-common.h"
+#include "SupervisorSPIServer.h"
 
-#include <peripheral/GPIO.h>
+SupervisorSPIServer::SupervisorSPIServer(SPI<64, 64>& spi)
+	: SPIServer(spi)
+{
+}
 
 /**
-	@brief Base class for control signals for a single power rail
+	@brief Called when a SPI command arrives
  */
-class RailDescriptor
+void SupervisorSPIServer::OnCommand(uint8_t b)
 {
-public:
+	m_command = b;
 
-	RailDescriptor(const char* name)
-		: m_name(name)
-	{}
+	//Always send a dummy byte
+	static uint8_t dummy[1] = { 0x00 };
+	m_spi.NonblockingWriteFifo(dummy, 1);
 
-	///@brief Turns on the rail, returns true on success
-	virtual bool TurnOn() =0;
-
-	///@brief Turns off the rail
-	virtual void TurnOff() =0;
-
-protected:
-	const char* m_name;
-};
-
-/**
-	@brief A power rail that has an active-high enable line, but no feedback on whether it's up
- */
-class RailDescriptorWithEnable : public RailDescriptor
-{
-public:
-
-	/**
-		@brief Creates a new rail descriptor
-
-		@param name		Human readable rail name for logging
-		@param enable	Enable pin (set high to turn on power)
-		@param timer	Timer to use for sequencing delays
-		@param delay	Delay, in timer ticks, after turning on this rail before doing anything else
-	 */
-	RailDescriptorWithEnable(const char* name, GPIOPin& enable, Timer& timer, uint16_t delay)
-		: RailDescriptor(name)
-		, m_enable(enable)
-		, m_timer(timer)
-		, m_delay(delay)
+	switch(m_command)
 	{
-		//Turn off immediately
-		m_enable = 0;
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Stats readout commands
+
+		case SUPER_REG_VERSION:
+			m_spi.NonblockingWriteFifo((const uint8_t*)g_version, sizeof(g_version));
+			break;
+
+		case SUPER_REG_IBCVERSION:
+			m_spi.NonblockingWriteFifo((const uint8_t*)g_ibcSwVersion, sizeof(g_ibcSwVersion));
+			break;
+
+		case SUPER_REG_IBCHWVERSION:
+			m_spi.NonblockingWriteFifo((const uint8_t*)g_ibcHwVersion, sizeof(g_ibcHwVersion));
+			break;
+
+		case SUPER_REG_IBCVIN:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_vin48, sizeof(g_vin48));
+			break;
+
+		case SUPER_REG_IBCIIN:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_iin, sizeof(g_iin));
+			break;
+
+		case SUPER_REG_IBCTEMP:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_ibcTemp, sizeof(g_ibcTemp));
+			break;
+
+		case SUPER_REG_IBCVOUT:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_vout12, sizeof(g_vout12));
+			break;
+
+		case SUPER_REG_IBCIOUT:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_iout, sizeof(g_iout));
+			break;
+
+		case SUPER_REG_IBCVSENSE:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_voutsense, sizeof(g_voutsense));
+			break;
+
+		case SUPER_REG_IBCMCUTEMP:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_ibcMcuTemp, sizeof(g_ibcMcuTemp));
+			break;
+
+		case SUPER_REG_IBC3V3:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_ibc3v3, sizeof(g_ibc3v3));
+			break;
+
+		case SUPER_REG_MCUTEMP:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_mcutemp, sizeof(g_mcutemp));
+			break;
+
+		case SUPER_REG_3V3:
+			m_spi.NonblockingWriteFifo((const uint8_t*)&g_3v3Voltage, sizeof(g_3v3Voltage));
+			break;
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Firmware update commands etc TODO
+
+		default:
+			break;
 	}
-
-	virtual bool TurnOn() override
-	{
-		g_log("Turning on %s\n", m_name);
-		m_enable = 1;
-		m_timer.Sleep(m_delay);
-		return true;
-	};
-
-	virtual void TurnOff() override
-	{ m_enable = 0; };
-
-protected:
-	GPIOPin& m_enable;
-	Timer& m_timer;
-	uint16_t m_delay;
-};
-
-/**
-	@brief A power rail that has an active-high enable line and an active-high PGOOD line
- */
-class RailDescriptorWithEnableAndPGood : public RailDescriptorWithEnable
-{
-public:
-	/**
-		@brief Creates a new rail descriptor
-
-		@param name		Human readable rail name for logging
-		@param enable	Enable pin (set high to turn on power)
-		@param pgood	Enable pin (set high to turn on power)
-		@param timer	Timer to use for sequencing delays
-		@param timeout	Timeout, in timer ticks, at which point the rail is expected to have come up
-	 */
-	RailDescriptorWithEnableAndPGood(const char* name, GPIOPin& enable, GPIOPin& pgood, Timer& timer, uint16_t timeout)
-		: RailDescriptorWithEnable(name, enable, timer, timeout)
-		, m_pgood(pgood)
-	{
-		//Turn off immediately
-		m_enable = 0;
-	}
-
-	virtual bool TurnOn() override
-	{
-		g_log("Turning on %s\n", m_name);
-
-		m_enable = 1;
-
-		for(uint32_t i=0; i<m_delay; i++)
-		{
-			if(m_pgood)
-				return true;
-			m_timer.Sleep(1);
-		}
-
-		if(!m_pgood)
-		{
-			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
-			return false;
-		}
-		return true;
-	};
-
-protected:
-	GPIOPin& m_pgood;
-};
-
-#endif
+}
