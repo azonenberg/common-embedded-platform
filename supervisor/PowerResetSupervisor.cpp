@@ -105,7 +105,7 @@ void PowerResetSupervisor::PowerOff()
 	}
 
 	//Power is now off
-	m_powerOn = true;
+	m_powerOn = false;
 	m_resetsDone = false;
 	m_resetSequenceIndex = 0;
 
