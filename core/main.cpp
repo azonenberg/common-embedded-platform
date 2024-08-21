@@ -168,3 +168,17 @@ void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize)
 		kvs.IsLeftBankActive() ? "left" : "right",
 		kvs.GetBankHeaderVersion() );
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper for firmware updates etc
+
+void FormatBuildID(const uint8_t* buildID, char* strOut)
+{
+	const char* hex = "0123456789abcdef";
+	for(int i=0; i<20; i++)
+	{
+		strOut[i*2] = hex[buildID[16+i] >> 4];
+		strOut[i*2 + 1] = hex[buildID[16+i] & 0xf];
+	}
+	strOut[40] = '\0';
+}

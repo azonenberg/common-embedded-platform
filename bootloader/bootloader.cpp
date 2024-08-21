@@ -33,12 +33,6 @@
 
 void App_Init();
 
-///@brief size of a .gnu.build-id block including headers
-#define GNU_BUILD_ID_SIZE (uint32_t)36
-
-///@brief SIze of a .gnu.build-id block as hex (including null terminator)(
-#define GNU_BUILD_ID_HEX_SIZE 41
-
 static const uint8_t g_gnuBuildIdHeader[16] =
 { 0x04, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 'G', 'N', 'U' };
 
@@ -153,17 +147,6 @@ bool ValidateAppPartition(const uint32_t* appVector)
 		g_log(Logger::ERROR, "CRC mismatch, application partition flash corruption?\n");
 		return false;
 	}
-}
-
-void FormatBuildID(const uint8_t* buildID, char* strOut)
-{
-	const char* hex = "0123456789abcdef";
-	for(int i=0; i<20; i++)
-	{
-		strOut[i*2] = hex[buildID[16+i] >> 4];
-		strOut[i*2 + 1] = hex[buildID[16+i] & 0xf];
-	}
-	strOut[40] = '\0';
 }
 
 bool IsAppUpdated(const uint32_t* appVector)

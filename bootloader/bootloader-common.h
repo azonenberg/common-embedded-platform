@@ -132,7 +132,4 @@ extern "C" void __attribute__((noreturn)) DoBootApplication(const uint32_t* appV
  */
 void EraseFlash(uint32_t* appVector);
 
-///@brief Pretty-prints a .gnu.build-id hash
-void FormatBuildID(const uint8_t* buildID, char* strOut);
-
 #endif

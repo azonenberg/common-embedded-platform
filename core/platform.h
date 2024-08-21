@@ -49,6 +49,7 @@ extern KVS* g_kvs;
 //Global helper functions
 void __attribute__((noreturn)) Reset();
 void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
+void FormatBuildID(const uint8_t* buildID, char* strOut);
 
 //Returns true in bootloader, false in application firmware
 bool IsBootloader();

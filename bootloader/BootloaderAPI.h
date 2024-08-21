@@ -62,4 +62,10 @@ struct __attribute__((packed)) BootloaderBBRAM
 
 extern volatile BootloaderBBRAM* g_bbram;
 
+///@brief size of a .gnu.build-id block including headers
+#define GNU_BUILD_ID_SIZE (uint32_t)36
+
+///@brief SIze of a .gnu.build-id block as hex (including null terminator)(
+#define GNU_BUILD_ID_HEX_SIZE 41
+
 #endif
