@@ -1,5 +1,7 @@
 # This file contains common boilerplate that most users will want to include in their top level cmakelists
 
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+
 ########################################################################################################################
 # Build types
 
