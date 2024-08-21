@@ -22,8 +22,4 @@ function(common_postbuild TGT)
         COMMAND ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/postbuild/${TARGET_MCU}.sh ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${TGT}
         COMMENT "Calculating flash usage")
 
-	add_custom_command(TARGET ${TGT} POST_BUILD
-		COMMAND rm -f ${CMAKE_CURRENT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/${TGT}.dir/vectors.cpp.o
-		COMMENT "Removing object file for vectors.cpp to force rebuild next compile")
-
 endfunction()

@@ -105,18 +105,17 @@ bool ValidateAppPartition(const uint32_t* appVector);
 	@brief Checks if the application partition contains a different firmware version than we last booted
 
 	@param appVector	Pointer to application partition
-	@param firmwareVer	Output string set to firmware version on success, or null on failure
 
 	@return True if app version has changed
  */
-bool IsAppUpdated(const uint32_t* appVector, const char*& firmwareVer);
+bool IsAppUpdated(const uint32_t* appVector);
 
 /**
-	@brief Gets the application version string (if valid and null terminated)
+	@brief Gets the application version hash
 
-	Returns null on failure.
+	Returns false on failure
  */
-const char* GetImageVersion(const uint32_t* appVector);
+bool GetImageVersion(const uint32_t* appVector, char* versionString);
 
 /**
 	@brief Jump to the application partition and launch it
@@ -132,5 +131,8 @@ extern "C" void __attribute__((noreturn)) DoBootApplication(const uint32_t* appV
 	@brief Erases the application flash partition
  */
 void EraseFlash(uint32_t* appVector);
+
+///@brief Pretty-prints a .gnu.build-id hash
+void FormatBuildID(const uint8_t* buildID, char* strOut);
 
 #endif

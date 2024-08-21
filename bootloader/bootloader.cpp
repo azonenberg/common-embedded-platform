@@ -33,6 +33,15 @@
 
 void App_Init();
 
+///@brief size of a .gnu.build-id block including headers
+#define GNU_BUILD_ID_SIZE (uint32_t)36
+
+///@brief SIze of a .gnu.build-id block as hex (including null terminator)(
+#define GNU_BUILD_ID_HEX_SIZE 41
+
+static const uint8_t g_gnuBuildIdHeader[16] =
+{ 0x04, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 'G', 'N', 'U' };
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // KVS settings
 
@@ -79,8 +88,7 @@ bool ValidateAppPartition(const uint32_t* appVector)
 
 	//See if we have a saved CRC in flash
 	uint32_t expectedCRC = 0;
-	const char* firmwareVer = nullptr;
-	bool updatedViaJtag = IsAppUpdated(appVector, firmwareVer);
+	bool updatedViaJtag = IsAppUpdated(appVector);
 	if(!updatedViaJtag)
 	{
 		auto hlog = g_kvs->FindObject(g_imageCRCKey);
@@ -124,7 +132,9 @@ bool ValidateAppPartition(const uint32_t* appVector)
 	{
 		g_log("New image present (JTAG flash?) but no corresponding saved CRC, updating CRC and version\n");
 
-		if(!g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)firmwareVer, strlen(firmwareVer)))
+		char firmwareVer[GNU_BUILD_ID_HEX_SIZE];
+		FormatBuildID(reinterpret_cast<const uint8_t*>(appVector) + g_appVersionOffset, firmwareVer);
+		if(!g_kvs->StoreObject(g_imageVersionKey, (const uint8_t*)firmwareVer, GNU_BUILD_ID_HEX_SIZE))
 			g_log(Logger::ERROR, "KVS write error\n");
 		if(!g_kvs->StoreObject(g_imageCRCKey, (const uint8_t*)&crc, sizeof(crc)))
 			g_log(Logger::ERROR, "KVS write error\n");
@@ -145,39 +155,45 @@ bool ValidateAppPartition(const uint32_t* appVector)
 	}
 }
 
-bool IsAppUpdated(const uint32_t* appVector, const char*& firmwareVer)
+void FormatBuildID(const uint8_t* buildID, char* strOut)
 {
-	//Image is present, see if we have a good version string
-	firmwareVer = reinterpret_cast<const char*>(appVector) + g_appVersionOffset;
-	bool validVersion = false;
-	for(size_t i=0; i<32; i++)
+	const char* hex = "0123456789abcdef";
+	for(int i=0; i<20; i++)
 	{
-		if(firmwareVer[i] == '\0')
-		{
-			validVersion = true;
-			break;
-		}
+		strOut[i*2] = hex[buildID[16+i] >> 4];
+		strOut[i*2 + 1] = hex[buildID[16+i] & 0xf];
 	}
+	strOut[40] = '\0';
+}
+
+bool IsAppUpdated(const uint32_t* appVector)
+{
+	//Image is present, see if we have a valid .gnu.build-id header
+	auto firmwareVer = reinterpret_cast<const uint8_t*>(appVector) + g_appVersionOffset;
+
+	bool validVersion = (0 == memcmp(firmwareVer, g_gnuBuildIdHeader, sizeof(g_gnuBuildIdHeader)));
 	if(!validVersion)
 	{
-		g_log(Logger::ERROR, "No version string found in application partition!\n");
-		g_log("Expected <32 byte null terminated string at 0x%08x\n",
+		g_log(Logger::ERROR, "No .gnu.build-id found in application partition!\n");
+		g_log("Expected a valid .gnu.build-id at 0x%08x\n",
 			reinterpret_cast<uint32_t>(firmwareVer));
-
 		return false;
 	}
-	g_log("Found firmware version:       %s\n", firmwareVer);
+
+	//Print the firmware SHA1 hash
+	char firmwareVerHex[GNU_BUILD_ID_HEX_SIZE];
+	FormatBuildID(firmwareVer, firmwareVerHex);
+	g_log("Found firmware build ID:       %s\n", firmwareVerHex);
 
 	//See if we're booting a previously booted image
 	auto hlog = g_kvs->FindObject(g_imageVersionKey);
-	if(hlog)
+	if(hlog && hlog->m_len == GNU_BUILD_ID_HEX_SIZE)
 	{
-		char knownVersion[33] = {0};
-		strncpy(knownVersion, (const char*)g_kvs->MapObject(hlog), std::min(hlog->m_len, (uint32_t)32));
-		g_log("Previous image version:       %s\n", knownVersion);
+		auto knownVerHex = reinterpret_cast<const char*>(g_kvs->MapObject(hlog));
+		g_log("Previous image build ID:       %s\n", knownVerHex);
 
 		//Is this the image we are now booting?
-		if(0 != strcmp(knownVersion, firmwareVer))
+		if(0 != strcmp(knownVerHex, firmwareVerHex))
 			return true;
 	}
 
@@ -192,17 +208,22 @@ bool IsAppUpdated(const uint32_t* appVector, const char*& firmwareVer)
 	return false;
 }
 
-const char* GetImageVersion(const uint32_t* appVector)
+bool GetImageVersion(const uint32_t* appVector, char* versionString)
 {
-	auto firmwareVer = reinterpret_cast<const char*>(appVector) + g_appVersionOffset;
-	for(size_t i=0; i<32; i++)
+	//Image is present, see if we have a valid .gnu.build-id header
+	auto firmwareVer = reinterpret_cast<const uint8_t*>(appVector) + g_appVersionOffset;
+
+	bool validVersion = (0 == memcmp(firmwareVer, g_gnuBuildIdHeader, sizeof(g_gnuBuildIdHeader)));
+	if(!validVersion)
 	{
-		if(firmwareVer[i] == '\0')
-			return firmwareVer;
+		g_log(Logger::ERROR, "No .gnu.build-id found in application partition!\n");
+		g_log("Expected a valid .gnu.build-id at 0x%08x\n",
+			reinterpret_cast<uint32_t>(firmwareVer));
+		return false;
 	}
 
-	//no null terminator
-	return nullptr;
+	FormatBuildID(firmwareVer, versionString);
+	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -339,8 +360,7 @@ void Bootloader_MainLoop()
 	//TODO: give it a couple of tries first?
 	else if(crashed)
 	{
-		const char* firmwareVer = nullptr;
-		if(IsAppUpdated(g_appVector, firmwareVer))
+		if(IsAppUpdated(g_appVector))
 		{
 			g_log("Application was updated since last flash, attempting to boot new image\n");
 			if(ValidateAppPartition(g_appVector))
