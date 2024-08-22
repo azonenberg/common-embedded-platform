@@ -10,8 +10,9 @@ if(NOT DEFINED CMAKE_BUILD_TYPE)
 endif()
 
 # always leave debug info on, we can strip separately if required
-set(CMAKE_CXX_FLAGS_DEBUG "-g -Og -D_DEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "-g -O3")
+# define NDEBUG even in debug builds so newlib doesnt try to compile 10+ kB of asserts!!
+set(CMAKE_CXX_FLAGS_DEBUG "-g -Og -D_DEBUG -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG")
 
 ########################################################################################################################
 # Helper for defining post-build steps
