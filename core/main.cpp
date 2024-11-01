@@ -110,7 +110,22 @@ void __attribute__((weak)) BSP_MainLoop()
 {
 	g_log("Ready\n");
 	while(1)
+	{
+		//Check for overflows on our timer
+		const int logTimerMax = 60000;
+		if(g_log.UpdateOffset(logTimerMax))
+		{
+			for(auto t : g_timerTasks)
+				t->OnTimerShift(logTimerMax);
+		}
+
+		//Run all of our regular tasks
+		for(auto t : g_tasks)
+			t->Iteration();
+
+		//Run any non-task stuff
 		BSP_MainLoopIteration();
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

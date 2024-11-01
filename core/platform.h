@@ -35,6 +35,8 @@
 #include <stdint.h>
 #include <stm32.h>
 
+#include <etl/vector.h>
+
 #include <peripheral/RCC.h>
 #include <peripheral/Timer.h>
 
@@ -59,5 +61,11 @@ bool IsBootloader();
 #include "TimerTask.h"
 
 #include "bsp.h"
+
+//All tasks
+extern etl::vector<Task*, MAX_TASKS>  g_tasks;
+
+//Timer tasks (strict subset of total tasks)
+extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
 
 #endif
