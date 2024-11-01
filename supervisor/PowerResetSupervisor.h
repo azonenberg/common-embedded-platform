@@ -37,7 +37,7 @@
 /**
 	@brief Top level control class for supervisor logic
  */
-class PowerResetSupervisor
+class PowerResetSupervisor : public Task
 {
 public:
 	PowerResetSupervisor(etl::ivector<RailDescriptor*>& rails, etl::ivector<ResetDescriptor*>& resets)
@@ -63,7 +63,7 @@ public:
 	/**
 		@brief Called each iteration through the main loop
 	 */
-	void Iteration()
+	virtual void Iteration() override
 	{
 		if(m_powerOn)
 		{

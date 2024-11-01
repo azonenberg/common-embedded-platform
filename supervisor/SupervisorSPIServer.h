@@ -33,10 +33,15 @@
 #include <supervisor/SupervisorSPIRegisters.h>
 #include <helpers/SPIServer.h>
 
-class SupervisorSPIServer : public SPIServer
+class SupervisorSPIServer
+	: public SPIServer
+	, public Task
 {
 public:
 	SupervisorSPIServer(SPI<64, 64>& spi);
+
+	virtual void Iteration()
+	{ Poll(); }
 
 protected:
 	virtual void OnCommand(uint8_t b) override;
