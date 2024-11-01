@@ -27,37 +27,46 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef platform_h
-#define platform_h
+#ifndef TimerTask_h
+#define TimerTask_h
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
-
-#include <peripheral/RCC.h>
-#include <peripheral/Timer.h>
-
-#include <embedded-utils/Logger.h>
-#include <microkvs/kvs/KVS.h>
-
-//Common globals every system expects to have available
-extern Logger g_log;
-extern Timer g_logTimer;
-extern KVS* g_kvs;
-
-//Global helper functions
-void __attribute__((noreturn)) Reset();
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void FormatBuildID(const uint8_t* buildID, char* strOut);
-
-//Returns true in bootloader, false in application firmware
-bool IsBootloader();
-
-//Task types
 #include "Task.h"
-#include "TimerTask.h"
 
-#include "bsp.h"
+/**
+	@brief A task that executes a function at regular intervals
+ */
+class TimerTask : public Task
+{
+public:
+	TimerTask(uint32_t initialOffset, uint32_t period)
+		: m_target(g_logTimer.GetCount() + initialOffset)
+		, m_period(period)
+	{}
+
+	void OnTimerShift(uint32_t delta)
+	{
+		if(m_target > delta)
+			m_target -= delta;
+	}
+
+	virtual void Iteration()
+	{
+		auto now = g_logTimer.GetCount();
+		if(now >= m_target)
+		{
+			OnTimer();
+			m_target = now + m_period;
+		}
+	}
+
+protected:
+	virtual void OnTimer() =0;
+
+	///@brief Timestamp of the next execution
+	uint32_t m_target;
+
+	///@brief Number of timer ticks between executions
+	uint32_t m_period;
+};
 
 #endif

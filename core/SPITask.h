@@ -27,37 +27,49 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef platform_h
-#define platform_h
+#ifndef SPITask_h
+#define SPITask_h
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
-
-#include <peripheral/RCC.h>
-#include <peripheral/Timer.h>
-
-#include <embedded-utils/Logger.h>
-#include <microkvs/kvs/KVS.h>
-
-//Common globals every system expects to have available
-extern Logger g_log;
-extern Timer g_logTimer;
-extern KVS* g_kvs;
-
-//Global helper functions
-void __attribute__((noreturn)) Reset();
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void FormatBuildID(const uint8_t* buildID, char* strOut);
-
-//Returns true in bootloader, false in application firmware
-bool IsBootloader();
-
-//Task types
 #include "Task.h"
-#include "TimerTask.h"
+#include <peripheral/SPI.h>
 
-#include "bsp.h"
+/**
+	@brief A task that handles SPI requests
+ */
+template<size_t rxsize, size_t txsize> class SPITask : public Task
+{
+public:
+	SPITask(SPI<rxsize, txsize>* spi)
+		: m_spi(spi)
+	{}
+
+	virtual void Iteration()
+	{
+		if(m_spi->HasEvents())
+		{
+			auto event = m_spi->GetEvent();
+
+			//Reset byte count on CS# rising or falling edge
+			if(event.type == SPIEvent::TYPE_CS)
+				m_nbyte = 0;
+
+			//Process the data byte
+			else
+			{
+				OnDataByte(event.data);
+				m_nbyte ++;
+			}
+		}
+	}
+
+protected:
+	virtual void OnDataByte(uint8_t data) =0;
+
+	///@brief The underlying SPI device
+	SPI<rxsize, txsize>* m_spi;
+
+	///@brief Byte index within the SPI burst
+	uint16_t m_nbyte;
+};
 
 #endif

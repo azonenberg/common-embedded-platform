@@ -27,37 +27,16 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef platform_h
-#define platform_h
+#ifndef Task_h
+#define Task_h
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
-
-#include <peripheral/RCC.h>
-#include <peripheral/Timer.h>
-
-#include <embedded-utils/Logger.h>
-#include <microkvs/kvs/KVS.h>
-
-//Common globals every system expects to have available
-extern Logger g_log;
-extern Timer g_logTimer;
-extern KVS* g_kvs;
-
-//Global helper functions
-void __attribute__((noreturn)) Reset();
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void FormatBuildID(const uint8_t* buildID, char* strOut);
-
-//Returns true in bootloader, false in application firmware
-bool IsBootloader();
-
-//Task types
-#include "Task.h"
-#include "TimerTask.h"
-
-#include "bsp.h"
+/**
+	@brief A cooperative-multitasking operation to be executed as part of the main loop
+ */
+class Task
+{
+public:
+	virtual void Iteration() =0;
+};
 
 #endif
