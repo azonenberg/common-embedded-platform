@@ -93,6 +93,11 @@ void PowerResetSupervisor::PowerOff()
 {
 	g_log("Turning power off\n");
 
+	//Power-down sequence started
+	m_powerOn = false;
+	m_resetsDone = false;
+	m_resetSequenceIndex = 0;
+
 	//Assert all resets in reverse order
 	for(int i = m_resetSequence.size()-1; i >= 0; i--)
 		m_resetSequence[i]->Assert();
@@ -103,11 +108,6 @@ void PowerResetSupervisor::PowerOff()
 		m_railSequence[i]->TurnOff();
 		g_logTimer.Sleep(10);
 	}
-
-	//Power is now off
-	m_powerOn = false;
-	m_resetsDone = false;
-	m_resetSequenceIndex = 0;
 
 	OnPowerOff();
 }
@@ -163,11 +163,27 @@ void PowerResetSupervisor::MonitorRails()
 {
 	for(auto rail : m_railSequence)
 	{
+		//Power lost
 		if(!rail->IsPowerGood())
 		{
-			g_log(Logger::ERROR, "Rail %s power failure - panic shutdown\n", rail->GetName());
-			PanicShutdown();
-			return;
+			//Loss of a critical rail triggers a panic shutdown
+			if(rail->IsCritical())
+			{
+				g_log(Logger::ERROR, "Rail %s power failure - panic shutdown\n", rail->GetName());
+				PanicShutdown();
+				return;
+			}
+
+			//Loss of input power triggers the power failure path
+			else if(rail->IsInputSupply())
+			{
+				g_log("Power lost, triggering shutdown sequence\n");
+				OnPowerLost();
+				PowerOff();
+				g_log("Power failure sequence complete, supervisor is still alive\n");
+				//don't hang, if power comes back before we lose supervisor power we should remain alive and respnosive
+				break;
+			}
 		}
 	}
 }

@@ -53,6 +53,22 @@ public:
 	virtual bool IsPowerGood()
 	{ return true; }
 
+	/**
+		@brief True if the rail should never shut down during normal operation
+
+		If false, this rail going down will not trigger a panic shutdown
+	 */
+	virtual bool IsCritical()
+	{ return true; }
+
+	/**
+		@brief True if the rail is the input supply rail for the board
+
+		If pgood goes low on this rail, it will trigger the power failure condition.
+	 */
+	virtual bool IsInputSupply()
+	{ return false; }
+
 	const char* GetName() const
 	{ return m_name; }
 

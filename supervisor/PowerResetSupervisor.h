@@ -92,6 +92,10 @@ protected:
 		{}
 	};
 
+	///@brief Hook called when input power is lost
+	virtual void OnPowerLost()
+	{}
+
 	///@brief The rail sequence
 	etl::ivector<RailDescriptor*>& m_railSequence;
 
