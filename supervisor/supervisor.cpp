@@ -53,6 +53,7 @@ char g_ibcHwVersion[20] = {0};
 ///@brief Our firmware version string
 char g_version[20] = {0};
 
+#ifndef NO_IBC
 //Current IBC sensor readings
 uint16_t g_ibcTemp = 0;
 uint16_t g_ibc3v3 = 0;
@@ -64,6 +65,7 @@ uint16_t g_iin = 0;
 uint16_t g_iout = 0;
 uint16_t g_3v3Voltage = 0;
 uint16_t g_mcutemp = 0;
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hardware initialization
@@ -71,7 +73,9 @@ uint16_t g_mcutemp = 0;
 void Super_Init()
 {
 	Super_InitI2C();
+	#ifndef NO_IBC
 	Super_InitIBC();
+	#endif
 
 	#ifdef HAVE_ADC
 	Super_InitADC();
@@ -80,7 +84,7 @@ void Super_Init()
 
 void Super_InitI2C()
 {
-	g_log("Initializing IBC I2C interface\n");
+	g_log("Initializing I2C interface\n");
 
 	//Initialize the I2C then wait a bit longer
 	//(i2c pin states prior to init are unknown)
@@ -88,24 +92,27 @@ void Super_InitI2C()
 	g_i2c.Reset();
 	g_logTimer.Sleep(100);
 
-	//Set temperature sensor to max resolution
-	//(if it doesn't respond, the i2c is derped out so reset and try again)
-	for(int i=0; i<5; i++)
-	{
-		uint8_t cmd[3] = {0x01, 0x60, 0x00};
-		if(g_i2c.BlockingWrite(g_tempI2cAddress, cmd, sizeof(cmd)))
-			break;
+	#ifndef NO_IBC
+		//Set temperature sensor to max resolution
+		//(if it doesn't respond, the i2c is derped out so reset and try again)
+		for(int i=0; i<5; i++)
+		{
+			uint8_t cmd[3] = {0x01, 0x60, 0x00};
+			if(g_i2c.BlockingWrite(g_tempI2cAddress, cmd, sizeof(cmd)))
+				break;
 
-		g_log(
-			Logger::WARNING,
-			"Failed to initialize I2C temp sensor at 0x%02x, resetting and trying again\n",
-			g_tempI2cAddress);
+			g_log(
+				Logger::WARNING,
+				"Failed to initialize I2C temp sensor at 0x%02x, resetting and trying again\n",
+				g_tempI2cAddress);
 
-		g_i2c.Reset();
-		g_logTimer.Sleep(100);
-	}
+			g_i2c.Reset();
+			g_logTimer.Sleep(100);
+		}
+	#endif
 }
 
+#ifndef NO_IBC
 void Super_InitIBC()
 {
 	g_log("Connecting to IBC\n");
@@ -128,6 +135,7 @@ void Super_InitIBC()
 		g_log("IBC hardware version %s\n", g_ibcHwVersion);
 	#endif
 }
+#endif
 
 #ifdef HAVE_ADC
 void Super_InitADC()
@@ -169,6 +177,7 @@ void Super_InitADC()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IBC sensor interfacing
 
+#ifndef NO_IBC
 /**
 	@brief Requests more sensor data from the IBC
 
@@ -290,3 +299,4 @@ bool PollIBCSensors()
 
 	return false;
 }
+#endif

@@ -1,3 +1,11 @@
+if(NOT DEFINED CEP_BUILD_SUPER)
+  set(CEP_NO_IBC 0)
+endif()
+
+if(CEP_NO_IBC)
+	add_compile_definitions(NO_IBC=1)
+endif()
+
 add_library(common-embedded-platform-supervisor STATIC
 	IBCRegisterReader.cpp
 	PowerResetSupervisor.cpp
