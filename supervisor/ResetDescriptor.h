@@ -99,5 +99,23 @@ protected:
 	GPIOPin& m_done;
 };
 
+/**
+	@brief An active-low reset plus an active-low signal that's asserted when the device is operational
+ */
+class ActiveLowResetDescriptorWithActiveLowDone : public ActiveLowResetDescriptor
+{
+public:
+	ActiveLowResetDescriptorWithActiveLowDone(GPIOPin& rst, GPIOPin& done, const char* name)
+	: ActiveLowResetDescriptor(rst, name)
+	, m_done(done)
+	{}
+
+	virtual bool IsReady() override
+	{ return !m_done; }
+
+protected:
+	GPIOPin& m_done;
+};
+
 
 #endif

@@ -169,4 +169,79 @@ protected:
 	GPIOPin& m_pgood;
 };
 
+#if defined(HAVE_ADC) && defined(HAVE_FPU)
+
+#include <peripheral/ADC.h>
+extern ADC* g_adc;
+
+///@brief Rail descriptor using ADC measurement instead of PGOOD
+class RailDescriptorWithEnableAndADC : public RailDescriptorWithEnable
+{
+public:
+	RailDescriptorWithEnableAndADC(
+		const char* name,
+		GPIOPin& enable,
+		int adcChannel,
+		float vmin,
+		float vmax,
+		float scale,
+		Timer& timer,
+		uint16_t timeout,
+		float vdd = 3.3,
+		int navg = 4)
+		: RailDescriptorWithEnable(name, enable, timer, timeout)
+		, m_adcChannel(adcChannel)
+		, m_vmin(vmin)
+		, m_vmax(vmax)
+		, m_scale(scale)
+		, m_vdd(vdd)
+		, m_navg(navg)
+	{}
+
+	virtual bool TurnOn() override
+	{
+		g_log("Turning on %s\n", m_name);
+
+		m_enable = 1;
+
+		for(uint32_t i=0; i<m_delay; i++)
+		{
+			if(IsPowerGood())
+				return true;
+			m_timer.Sleep(1);
+		}
+
+		if(!IsPowerGood())
+		{
+			g_log(Logger::ERROR, "Rail %s failed to come up (measured %d mV, valid range [%d, %d])\n",
+				m_name,
+				static_cast<int>(GetVoltage() * 1000),
+				static_cast<int>(m_vmin * 1000),
+				static_cast<int>(m_vmax * 1000) );
+			return false;
+		}
+		return true;
+	}
+
+	virtual bool IsPowerGood() override
+	{
+		float v = GetVoltage();
+		return (v >= m_vmin) && (v <= m_vmax);
+	}
+
+	float GetVoltage()
+	{
+		return m_scale * g_adc->ReadChannelScaledAveraged(m_adcChannel, m_navg, m_vdd);
+	}
+
+	int m_adcChannel;
+	float m_vmin;
+	float m_vmax;
+	float m_scale;
+	float m_vdd;
+	int m_navg;
+};
+
+#endif
+
 #endif
