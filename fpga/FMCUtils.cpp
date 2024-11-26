@@ -27,51 +27,42 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef platform_h
-#define platform_h
+#include "../core/platform.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+#ifdef HAVE_FMC
+#include <peripheral/FMC.h>
 
-#include <etl/vector.h>
+/**
+	@brief Initialize the FMC peripheral in our standard configuration for FPGA interfacing:
 
-#include <peripheral/RCC.h>
-#include <peripheral/Timer.h>
+	* PLL2 R as clock source
+	* 16 bit multiplexed synchronous PSRAM interface
+	* Free running clock
+	* Synchronous wait states
+	* FPGA mapped at 0xc0000000 with MPU configured for device memory (strongly ordered, no caching)
+ */
+void InitFMCForFPGA()
+{
+	//Enable the FMC and select PLL2 R as the clock source
+	RCCHelper::Enable(&_FMC);
+	RCCHelper::SetFMCKernelClock(RCCHelper::FMC_CLOCK_PLL2_R);
 
-#include <embedded-utils/Logger.h>
-#include <microkvs/kvs/KVS.h>
+	//Use free-running clock output (so FPGA can clock APB off it)
+	//Configured as 16-bit multiplexed synchronous PSRAM
+	static FMCBank fmc(&_FMC, 0);
+	fmc.EnableFreeRunningClock();
+	fmc.EnableWrites();
+	fmc.SetSynchronous();
+	fmc.SetBusWidth(FMC_BCR_WIDTH_16);
+	fmc.SetMemoryType(FMC_BCR_TYPE_PSRAM);
+	fmc.SetAddressDataMultiplex();
 
-//Common globals every system expects to have available
-extern Logger g_log;
-extern Timer g_logTimer;
-extern KVS* g_kvs;
+	//Enable wait states wiath NWAIT active during the wait
+	fmc.EnableSynchronousWaitStates();
+	fmc.SetEarlyWaitState(false);
 
-//Global helper functions
-void __attribute__((noreturn)) Reset();
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void FormatBuildID(const uint8_t* buildID, char* strOut);
-
-//Returns true in bootloader, false in application firmware
-bool IsBootloader();
-
-//Task types
-#include "Task.h"
-#include "TimerTask.h"
-
-#include "bsp.h"
-
-//All tasks
-extern etl::vector<Task*, MAX_TASKS>  g_tasks;
-
-//Timer tasks (strict subset of total tasks)
-extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
-
-//Helpers for FPGA interfacing
-void InitFMCForFPGA();
-void InitFPGA();
-extern uint8_t g_fpgaSerial[8];
-extern uint32_t g_usercode;
+	//Map the PSRAM bank in slot 1 (0xc0000000) as strongly ordered / device memory
+	fmc.SetPsramBankAs1();
+}
 
 #endif

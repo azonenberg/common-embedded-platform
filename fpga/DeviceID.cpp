@@ -27,51 +27,109 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef platform_h
-#define platform_h
+#include "../core/platform.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+//TODO: ifdefs to specify what type of fpga we have
+#include <APB_DeviceInfo_7series.h>
+extern volatile APB_DeviceInfo_7series FDEVINFO;
 
-#include <etl/vector.h>
+///@brief USERCODE of the FPGA (build timestamp)
+uint32_t g_usercode = 0;
 
-#include <peripheral/RCC.h>
-#include <peripheral/Timer.h>
+///@brief FPGA die serial number
+uint8_t g_fpgaSerial[8] = {0};
 
-#include <embedded-utils/Logger.h>
-#include <microkvs/kvs/KVS.h>
+/**
+	@brief Initialize our FPGA
 
-//Common globals every system expects to have available
-extern Logger g_log;
-extern Timer g_logTimer;
-extern KVS* g_kvs;
+	Assumes we have a device info block called FDEVINFO somewhere, and that the USERCODE is set to the build date
+ */
+void InitFPGA()
+{
+	g_log("Initializing FPGA\n");
+	LogIndenter li(g_log);
 
-//Global helper functions
-void __attribute__((noreturn)) Reset();
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void FormatBuildID(const uint8_t* buildID, char* strOut);
+	//Verify reliable functionality by poking the scratchpad register (TODO: proper timing-control link training?)
+	g_log("FPGA loopback test...\n");
+	{
+		LogIndenter li2(g_log);
+		uint32_t tmp = 0xbaadc0de;
+		uint32_t count = 1000;
+		uint32_t errs = 0;
+		for(uint32_t i=0; i<count; i++)
+		//for(uint32_t i=0; true; i++)
+		{
+			FDEVINFO.scratch = tmp;
+			uint32_t readback = FDEVINFO.scratch;
+			if(readback != tmp)
+			{
+				//if(errs == 0)
+					g_log(Logger::ERROR, "Iteration %u: wrote 0x%08x, read 0x%08x\n", i, tmp, readback);
+				errs ++;
+			}
+			tmp ++;
+		}
+		g_log("%u iterations complete, %u errors\n", count, errs);
+	}
 
-//Returns true in bootloader, false in application firmware
-bool IsBootloader();
+	//Read the FPGA IDCODE and serial number
+	while(FDEVINFO.status != 3)
+	{}
 
-//Task types
-#include "Task.h"
-#include "TimerTask.h"
+	uint32_t idcode = FDEVINFO.idcode;
+	memcpy(g_fpgaSerial, (const void*)FDEVINFO.serial, 8);
 
-#include "bsp.h"
+	//Print status
+	switch(idcode & 0x0fffffff)
+	{
+		case 0x3647093:
+			g_log("IDCODE: %08x (XC7K70T rev %d)\n", idcode, idcode >> 28);
+			break;
 
-//All tasks
-extern etl::vector<Task*, MAX_TASKS>  g_tasks;
+		case 0x364c093:
+			g_log("IDCODE: %08x (XC7K160T rev %d)\n", idcode, idcode >> 28);
+			break;
 
-//Timer tasks (strict subset of total tasks)
-extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+		case 0x37c4093:
+			g_log("IDCODE: %08x (XC7S25 rev %d)\n", idcode, idcode >> 28);
+			break;
 
-//Helpers for FPGA interfacing
-void InitFMCForFPGA();
-void InitFPGA();
-extern uint8_t g_fpgaSerial[8];
-extern uint32_t g_usercode;
+		case 0x37c7093:
+			g_log("IDCODE: %08x (XC7S100 rev %d)\n", idcode, idcode >> 28);
+			break;
 
-#endif
+		case 0x4a63093:
+			g_log("IDCODE: %08x (XCKU3P rev %d)\n", idcode, idcode >> 28);
+			break;
+
+		default:
+			g_log("IDCODE: %08x (unknown device, rev %d)\n", idcode, idcode >> 28);
+			break;
+	}
+	g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+		g_fpgaSerial[7], g_fpgaSerial[6], g_fpgaSerial[5], g_fpgaSerial[4],
+		g_fpgaSerial[3], g_fpgaSerial[2], g_fpgaSerial[1], g_fpgaSerial[0]);
+
+	//Read USERCODE
+	g_usercode = FDEVINFO.usercode;
+	g_log("Usercode: %08x\n", g_usercode);
+	{
+		LogIndenter li2(g_log);
+
+		//Format per XAPP1232:
+		//31:27 day
+		//26:23 month
+		//22:17 year
+		//16:12 hr
+		//11:6 min
+		//5:0 sec
+		int day = g_usercode >> 27;
+		int mon = (g_usercode >> 23) & 0xf;
+		int yr = 2000 + ((g_usercode >> 17) & 0x3f);
+		int hr = (g_usercode >> 12) & 0x1f;
+		int min = (g_usercode >> 6) & 0x3f;
+		int sec = g_usercode & 0x3f;
+		g_log("Bitstream timestamp: %04d-%02d-%02d %02d:%02d:%02d\n",
+			yr, mon, day, hr, min, sec);
+	}
+}

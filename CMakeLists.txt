@@ -8,6 +8,10 @@ if(NOT DEFINED CEP_BUILD_SUPER)
   set(CEP_BUILD_SUPER 1)
 endif()
 
+if(NOT DEFINED CEP_BUILD_FPGA)
+  set(CEP_BUILD_FPGA 0)
+endif()
+
 add_subdirectory(bootloader)
 add_subdirectory(core)
 
@@ -17,4 +21,8 @@ endif()
 
 if(CEP_BUILD_SUPER)
 	add_subdirectory(supervisor)
+endif()
+
+if(CEP_BUILD_FPGA)
+	add_subdirectory(fpga)
 endif()
