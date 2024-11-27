@@ -27,14 +27,15 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef StandardBSP_h
-#define StandardBSP_h
+#ifndef CEP_FPGA_Ethernet_h
+#define CEP_FPGA_Ethernet_h
 
-#include <peripheral/UART.h>
+#include <APB_GPIO.h>
+#include <APB_MDIO.h>
 
-void DoInitKVS();
-void InitRTCFromHSE();
+extern volatile APB_GPIO FPGA_GPIOA;
+extern volatile APB_MDIO FMDIO;
 
-extern UART<32, 256> g_cliUART;
+void InitManagementPHY();
 
 #endif

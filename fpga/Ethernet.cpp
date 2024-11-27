@@ -27,14 +27,44 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef StandardBSP_h
-#define StandardBSP_h
+#include <core/platform.h>
+#include "Ethernet.h"
+#include "../tcpip/CommonTCPIP.h"
 
-#include <peripheral/UART.h>
+/**
+	@brief Initializes the management PHY
+ */
+void InitManagementPHY()
+{
+	g_log("Initializing management PHY\n");
+	LogIndenter li(g_log);
 
-void DoInitKVS();
-void InitRTCFromHSE();
+	//Reset the PHY
+	static APB_GPIOPin phy_rst_n(&FPGA_GPIOA, 4, APB_GPIOPin::MODE_OUTPUT);
+	phy_rst_n = 0;
+	g_logTimer.Sleep(10);
+	phy_rst_n = 1;
 
-extern UART<32, 256> g_cliUART;
+	//Wait 100us (datasheet page 62 note 2) before starting to program the PHY
+	g_logTimer.Sleep(10);
 
-#endif
+	//Read the PHY ID
+	static MDIODevice phydev(&FMDIO, 0);
+	g_phyMdio = &phydev;
+	auto phyid1 = phydev.ReadRegister(REG_PHY_ID_1);
+	auto phyid2 = phydev.ReadRegister(REG_PHY_ID_2);
+
+	if( (phyid1 == 0x22) && ( (phyid2 >> 4) == 0x162))
+	{
+		g_log("PHY ID   = %04x %04x (KSZ9031RNX rev %d)\n", phyid1, phyid2, phyid2 & 0xf);
+
+		//Adjust pad skew for RX_CLK register to improve timing FPGA side
+		//ManagementPHYExtendedWrite(2, REG_KSZ9031_MMD2_CLKSKEW, 0x01ef);
+	}
+	else
+		g_log("PHY ID   = %04x %04x (unknown)\n", phyid1, phyid2);
+
+	uint16_t bctl = g_phyMdio->ReadRegister(REG_BASIC_CONTROL);
+	uint16_t bstat = g_phyMdio->ReadRegister(REG_BASIC_STATUS);
+	g_log("bctl %04x bstat %04x\n", bctl, bstat);
+}

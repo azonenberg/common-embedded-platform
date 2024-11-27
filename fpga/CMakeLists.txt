@@ -1,5 +1,6 @@
 add_library(common-embedded-platform-fpga STATIC
 	DeviceID.cpp
+	Ethernet.cpp
 	FMCUtils.cpp
 	)
 

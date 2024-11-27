@@ -32,8 +32,10 @@
  */
 
 #include <core/platform.h>
+#include <microkvs/driver/STM32StorageBank.h>
 #include <peripheral/Flash.h>
 #include <peripheral/Power.h>
+#include <peripheral/RTC.h>
 #include "StandardBSP.h"
 
 //APB1 is 62.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
@@ -109,6 +111,30 @@ void BSP_InitLog()
 	g_logSink = &sink;
 
 	g_log.Initialize(g_logSink, &g_logTimer);
-	g_log("DUMPTRUCK by Andrew D. Zonenberg\n");
 	g_log("Firmware compiled at %s on %s\n", __TIME__, __DATE__);
+}
+
+void DoInitKVS()
+{
+	/*
+		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
+
+		Each log entry is 64 bytes, and we want to allocate ~50% of storage to the log since our objects are pretty
+		small (SSH keys, IP addresses, etc). A 1024-entry log is a nice round number, and comes out to 64 kB or 50%,
+		leaving the remaining 64 kB or 50% for data.
+	 */
+	static STM32StorageBank left(reinterpret_cast<uint8_t*>(0x080c0000), 0x20000);
+	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x080e0000), 0x20000);
+	InitKVS(&left, &right, 1024);
+}
+
+void InitRTCFromHSE()
+{
+	g_log("Initializing RTC...\n");
+	LogIndenter li(g_log);
+	g_log("Using external clock divided by 50 (500 kHz)\n");
+
+	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
+	RCCHelper::Enable(&_RTC);
+	RTC::SetClockFromHSE(50);
 }

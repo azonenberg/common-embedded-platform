@@ -27,14 +27,35 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef StandardBSP_h
-#define StandardBSP_h
+#ifndef CommonTCPIP_h
+#define CommonTCPIP_h
 
-#include <peripheral/UART.h>
+#include <staticnet-config.h>
+#include <staticnet/stack/staticnet.h>
 
-void DoInitKVS();
-void InitRTCFromHSE();
+#include <peripheral/I2C.h>
+#include <APB_MDIO.h>
 
-extern UART<32, 256> g_cliUART;
+extern MACAddress g_macAddress;
+extern IPv4Config g_ipConfig;
+extern IPv6Config g_ipv6Config;
+
+extern MDIODevice* g_phyMdio;
+extern const char* g_linkSpeedNamesLong[];
+
+extern EthernetProtocol* g_ethProtocol;
+extern bool g_basetLinkUp;
+extern uint8_t g_basetLinkSpeed;
+
+//IP address configuration
+extern const IPv4Address g_defaultIP;
+extern const IPv4Address g_defaultNetmask;
+extern const IPv4Address g_defaultBroadcast;
+extern const IPv4Address g_defaultGateway;
+
+///@brief I2C bus going to MAC address EEPROM
+extern I2C g_macI2C;
+
+void InitMacEEPROM();
 
 #endif
