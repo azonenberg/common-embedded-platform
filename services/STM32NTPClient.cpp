@@ -40,6 +40,9 @@ static const char* g_ntpEnableObjectID = "ntp.enable";
 ///@brief KVS key for NTP server IP
 static const char* g_ntpServerObjectID = "ntp.server";
 
+///@brief KVS key for NTP UTC offset
+static const char* g_ntpUtcOffsetObjectID = "ntp.tzoffset";
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
@@ -68,9 +71,7 @@ uint64_t STM32NTPClient::GetLocalTimestamp()
 
 void STM32NTPClient::OnTimeUpdated(time_t sec, uint32_t frac)
 {
-	//Apply offset from UTC to local time zone so the RTC can be set in local time
-	//TEMP: hard code UTC-7 PDT
-	sec -= 7*3600;
+	sec += m_utcOffset;
 
 	//Crack fields to something suitable for feeding to the RTC
 	//We can't use newlib's localtime() or localtime_r() because it calls sbrk() under the hood :(
@@ -144,6 +145,9 @@ void STM32NTPClient::LoadConfigFromKVS()
 
 	//Load server IP address
 	m_serverAddress = g_kvs->ReadObject<IPv4Address>(g_defaultNtpServer, g_ntpServerObjectID);
+
+	//Load UTC offset
+	m_utcOffset = g_kvs->ReadObject<int64_t>(-8*3600, g_ntpUtcOffsetObjectID);
 }
 
 void STM32NTPClient::SaveConfigToKVS()
@@ -152,5 +156,8 @@ void STM32NTPClient::SaveConfigToKVS()
 		g_log(Logger::ERROR, "KVS write error\n");
 
 	if(!g_kvs->StoreObjectIfNecessary<IPv4Address>(m_serverAddress, g_defaultNtpServer, g_ntpServerObjectID))
+		g_log(Logger::ERROR, "KVS write error\n");
+
+	if(!g_kvs->StoreObjectIfNecessary<int64_t>(m_utcOffset, -8*3600, g_ntpUtcOffsetObjectID))
 		g_log(Logger::ERROR, "KVS write error\n");
 }

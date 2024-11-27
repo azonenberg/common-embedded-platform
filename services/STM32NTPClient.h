@@ -63,6 +63,9 @@ protected:
 	///@brief Timestamp of the last successful sync
 	tm m_lastSync;
 	uint16_t m_lastSyncFrac;
+
+	///@brief UTC offset
+	int64_t m_utcOffset;
 };
 
 ///@brief Default NTP server if not specified in KVS (user code must provide this)

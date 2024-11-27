@@ -27,28 +27,21 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef CEP_FPGA_Ethernet_h
-#define CEP_FPGA_Ethernet_h
+#ifndef IPAgingTask_h
+#define IPAgingTask_h
 
-#include <APB_GPIO.h>
-#include <APB_MDIO.h>
+#include <core/TimerTask.h>
 
-#include <staticnet-config.h>
-#include <staticnet/stack/staticnet.h>
-#include <staticnet/drivers/apb/APBEthernetInterface.h>
+class IPAgingTask : public TimerTask
+{
+public:
+	IPAgingTask()
+		: TimerTask(0, 10 * 1000)
+	{}
 
-extern volatile APB_GPIO FPGA_GPIOA;
-extern volatile APB_MDIO FMDIO;
-
-extern APBEthernetInterface g_ethIface;
-
-void InitManagementPHY();
-void InitIP();
-
-extern volatile APB_EthernetTxBuffer_10G FETHTX;
-extern volatile APB_EthernetRxBuffer FETHRX;
-
-//to be provided by application code
-void RegisterProtocolHandlers(IPv4Protocol& ipv4);
+protected:
+	virtual void OnTimer() override;
+};
 
 #endif
+

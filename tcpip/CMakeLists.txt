@@ -1,5 +1,6 @@
 add_library(common-embedded-platform-tcpip STATIC
 	CommonTCPIP.cpp
+	IPAgingTask.cpp
 	PhyPollTask.cpp
 	)
 

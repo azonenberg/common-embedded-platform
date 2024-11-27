@@ -70,10 +70,6 @@ void InitManagementPHY()
 	}
 	else
 		g_log("PHY ID   = %04x %04x (unknown)\n", phyid1, phyid2);
-
-	uint16_t bctl = g_phyMdio->ReadRegister(REG_BASIC_CONTROL);
-	uint16_t bstat = g_phyMdio->ReadRegister(REG_BASIC_STATUS);
-	g_log("bctl %04x bstat %04x\n", bctl, bstat);
 }
 
 /**
@@ -114,5 +110,5 @@ void InitIP()
 	ipv4.UseICMPv4(&icmpv4);
 	//ipv6.UseICMPv6(&icmpv6);
 
-	//RegisterProtocolHandlers(ipv4);
+	RegisterProtocolHandlers(ipv4);
 }
