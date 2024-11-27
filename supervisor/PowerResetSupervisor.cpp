@@ -130,6 +130,7 @@ void PowerResetSupervisor::UpdateResets()
 		{
 			g_log("Reset sequence complete\n");
 			m_resetsDone = true;
+			OnResetDone();
 		}
 
 		//Nope, clear the next reset in line

@@ -81,6 +81,10 @@ protected:
 	virtual void OnPowerOn()
 	{}
 
+	///@brief Hook called at the end of the reset sequence
+	virtual void OnResetDone()
+	{}
+
 	///@brief Hook called at the end of the power-off sequence
 	virtual void OnPowerOff()
 	{}
