@@ -1,5 +1,6 @@
 add_library(common-embedded-platform-tcpip STATIC
 	CommonTCPIP.cpp
+	PhyPollTask.cpp
 	)
 
 target_include_directories(common-embedded-platform-tcpip
