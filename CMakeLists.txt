@@ -12,6 +12,10 @@ if(NOT DEFINED CEP_BUILD_FPGA)
   set(CEP_BUILD_FPGA 0)
 endif()
 
+if(NOT DEFINED CEP_BUILD_BOILERPLATE)
+  set(CEP_BUILD_BOILERPLATE 0)
+endif()
+
 add_subdirectory(bootloader)
 add_subdirectory(core)
 
@@ -25,4 +29,8 @@ endif()
 
 if(CEP_BUILD_FPGA)
 	add_subdirectory(fpga)
+endif()
+
+if(CEP_BUILD_BOILERPLATE)
+	add_subdirectory(boilerplate)
 endif()

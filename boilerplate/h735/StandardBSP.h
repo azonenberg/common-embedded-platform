@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -27,58 +27,11 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef platform_h
-#define platform_h
+#ifndef StandardBSP_h
+#define StandardBSP_h
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+#include <peripheral/UART.h>
 
-#include <etl/vector.h>
-
-#include <peripheral/RCC.h>
-#include <peripheral/Timer.h>
-
-#include <embedded-utils/Logger.h>
-#include <microkvs/kvs/KVS.h>
-
-#include "../../embedded-utils/LogSink.h"
-
-//Common globals every system expects to have available
-extern Logger g_log;
-extern Timer g_logTimer;
-extern KVS* g_kvs;
-
-//Global helper functions
-void __attribute__((noreturn)) Reset();
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void FormatBuildID(const uint8_t* buildID, char* strOut);
-
-//Returns true in bootloader, false in application firmware
-bool IsBootloader();
-
-//Task types
-#include "Task.h"
-#include "TimerTask.h"
-
-#include "bsp.h"
-
-//All tasks
-extern etl::vector<Task*, MAX_TASKS>  g_tasks;
-
-//Timer tasks (strict subset of total tasks)
-extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
-
-//Helpers for FPGA interfacing
-void InitFMCForFPGA();
-void InitFPGA();
-extern uint8_t g_fpgaSerial[8];
-extern uint32_t g_usercode;
-
-#ifndef MAX_LOG_SINKS
-#define MAX_LOG_SINKS 2
-#endif
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
+extern UART<32, 256> g_cliUART;
 
 #endif

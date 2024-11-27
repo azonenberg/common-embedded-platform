@@ -41,6 +41,9 @@ Logger g_log;
 ///@brief Key-value store used for storing configuration settings
 KVS* g_kvs = nullptr;
 
+///@brief Global log sink object
+LogSink<MAX_LOG_SINKS>* g_logSink = nullptr;
+
 //called by newlib
 extern "C" void hardware_init_hook();
 

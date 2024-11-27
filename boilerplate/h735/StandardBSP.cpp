@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -27,58 +27,88 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef platform_h
-#define platform_h
+/**
+	@brief Standard BSP overrides used by most if not all STM32H735 projects
+ */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+#include <core/platform.h>
+#include <peripheral/Flash.h>
+#include <peripheral/Power.h>
+#include "StandardBSP.h"
 
-#include <etl/vector.h>
+//APB1 is 62.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
+//Divide down to get 10 kHz ticks
+Timer g_logTimer(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12500);
 
-#include <peripheral/RCC.h>
-#include <peripheral/Timer.h>
+void BSP_InitPower()
+{
+	//Initialize power (must be the very first thing done after reset)
+	Power::ConfigureSMPSToLDOCascade(Power::VOLTAGE_1V8, RANGE_VOS0);
+}
 
-#include <embedded-utils/Logger.h>
-#include <microkvs/kvs/KVS.h>
+void BSP_InitClocks()
+{
+	//With CPU_FREQ_BOOST not set, max frequency is 520 MHz
 
-#include "../../embedded-utils/LogSink.h"
+	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
+	//A bit of extra latency is fine, the CPU being faster than flash is not.
+	Flash::SetConfiguration(513, RANGE_VOS0);
 
-//Common globals every system expects to have available
-extern Logger g_log;
-extern Timer g_logTimer;
-extern KVS* g_kvs;
+	//By default out of reset, we're clocked by the HSI clock at 64 MHz
+	//Initialize the external clock source at 25 MHz
+	RCCHelper::EnableHighSpeedExternalClock();
 
-//Global helper functions
-void __attribute__((noreturn)) Reset();
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void FormatBuildID(const uint8_t* buildID, char* strOut);
+	//Set up PLL1 to run off the external oscillator
+	RCCHelper::InitializePLL(
+		1,		//PLL1
+		25,		//input is 25 MHz from the HSE
+		2,		//25/2 = 12.5 MHz at the PFD
+		40,		//12.5 * 40 = 500 MHz at the VCO
+		1,		//div P (primary output 500 MHz)
+		10,		//div Q (50 MHz kernel clock)
+		10,		//div R (50 MHz SWO Manchester bit clock, 25 Mbps data rate)
+		RCCHelper::CLOCK_SOURCE_HSE
+	);
 
-//Returns true in bootloader, false in application firmware
-bool IsBootloader();
+	//Set up PLL2 to run the external memory bus
+	//We have some freedom with how fast we clock this!
+	//Doesn't have to be a multiple of 500 since separate VCO from the main system
+	RCCHelper::InitializePLL(
+		2,		//PLL2
+		25,		//input is 25 MHz from the HSE
+		2,		//25/2 = 12.5 MHz at the PFD
+		16,		//12.5 * 16 = 200 MHz at the VCO
+		32,		//div P (not used for now)
+		32,		//div Q (not used for now)
+		1,		//div R (200 MHz FMC kernel clock = 100 MHz FMC clock)
+		RCCHelper::CLOCK_SOURCE_HSE
+	);
 
-//Task types
-#include "Task.h"
-#include "TimerTask.h"
+	//Set up main system clock tree
+	RCCHelper::InitializeSystemClocks(
+		1,		//sysclk = 500 MHz
+		2,		//AHB = 250 MHz
+		4,		//APB1 = 62.5 MHz
+		4,		//APB2 = 62.5 MHz
+		4,		//APB3 = 62.5 MHz
+		4		//APB4 = 62.5 MHz
+	);
 
-#include "bsp.h"
+	//RNG clock should be >= HCLK/32
+	//AHB2 HCLK is 250 MHz so min 7.8125 MHz
+	//Select PLL1 Q clock (50 MHz)
+	RCC.D2CCIP2R = (RCC.D2CCIP2R & ~0x300) | (0x100);
 
-//All tasks
-extern etl::vector<Task*, MAX_TASKS>  g_tasks;
+	//Select PLL1 as system clock source
+	RCCHelper::SelectSystemClockFromPLL1();
+}
 
-//Timer tasks (strict subset of total tasks)
-extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+void BSP_InitLog()
+{
+	static LogSink<MAX_LOG_SINKS> sink(&g_cliUART);
+	g_logSink = &sink;
 
-//Helpers for FPGA interfacing
-void InitFMCForFPGA();
-void InitFPGA();
-extern uint8_t g_fpgaSerial[8];
-extern uint32_t g_usercode;
-
-#ifndef MAX_LOG_SINKS
-#define MAX_LOG_SINKS 2
-#endif
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
-
-#endif
+	g_log.Initialize(g_logSink, &g_logTimer);
+	g_log("DUMPTRUCK by Andrew D. Zonenberg\n");
+	g_log("Firmware compiled at %s on %s\n", __TIME__, __DATE__);
+}
