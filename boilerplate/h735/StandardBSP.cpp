@@ -38,6 +38,15 @@
 #include <peripheral/RTC.h>
 #include "StandardBSP.h"
 
+/**
+	@brief Digital temperature sensor
+
+	APB4 clock is 62.5MHz, so divide by 80 to get 781.25 kHz ticks
+	(must be <1 MHz)
+	15 cycles integration time
+ */
+DigitalTempSensor g_dts(&DTS, 80, 15, 62500000);
+
 //APB1 is 62.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
 //Divide down to get 10 kHz ticks
 Timer g_logTimer(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12500);
@@ -137,4 +146,15 @@ void InitRTCFromHSE()
 	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
 	RCCHelper::Enable(&_RTC);
 	RTC::SetClockFromHSE(50);
+}
+
+/**
+	@brief Initialize the digital temperature sensor
+ */
+void InitDTS()
+{
+	auto tempval = g_dts.GetTemperature();
+	g_log("MCU die temperature:                   %d.%02d C\n",
+		(tempval >> 8),
+		static_cast<int>(((tempval & 0xff) / 256.0) * 100));
 }

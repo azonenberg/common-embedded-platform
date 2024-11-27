@@ -33,9 +33,19 @@
 #include <APB_GPIO.h>
 #include <APB_MDIO.h>
 
+#include <staticnet-config.h>
+#include <staticnet/stack/staticnet.h>
+#include <staticnet/drivers/apb/APBEthernetInterface.h>
+
 extern volatile APB_GPIO FPGA_GPIOA;
 extern volatile APB_MDIO FMDIO;
 
+extern APBEthernetInterface g_ethIface;
+
 void InitManagementPHY();
+void InitIP();
+
+extern volatile APB_EthernetTxBuffer_10G FETHTX;
+extern volatile APB_EthernetRxBuffer FETHRX;
 
 #endif

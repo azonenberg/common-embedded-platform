@@ -71,7 +71,6 @@ extern etl::vector<Task*, MAX_TASKS>  g_tasks;
 extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
 
 //Helpers for FPGA interfacing
-void InitFMCForFPGA();
 void InitFPGA();
 extern uint8_t g_fpgaSerial[8];
 extern uint32_t g_usercode;

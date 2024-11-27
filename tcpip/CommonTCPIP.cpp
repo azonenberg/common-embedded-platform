@@ -102,3 +102,17 @@ void InitMacEEPROM()
 			serial[8], serial[9], serial[10], serial[11], serial[12], serial[13], serial[14], serial[15]);
 	}
 }
+
+/**
+	@brief Load our IP configuration from the KVS
+ */
+void ConfigureIP()
+{
+	g_ipConfig.m_address = g_kvs->ReadObject<IPv4Address>(g_defaultIP, "ip.address");
+	g_ipConfig.m_netmask = g_kvs->ReadObject<IPv4Address>(g_defaultNetmask, "ip.netmask");
+	g_ipConfig.m_broadcast = g_kvs->ReadObject<IPv4Address>(g_defaultBroadcast, "ip.broadcast");
+	g_ipConfig.m_gateway = g_kvs->ReadObject<IPv4Address>(g_defaultGateway, "ip.gateway");
+
+	//TODO
+	memset(&g_ipv6Config, 0, sizeof(g_ipv6Config));
+}

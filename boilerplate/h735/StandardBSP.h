@@ -30,11 +30,15 @@
 #ifndef StandardBSP_h
 #define StandardBSP_h
 
+#include <peripheral/DTS.h>
 #include <peripheral/UART.h>
 
 void DoInitKVS();
 void InitRTCFromHSE();
 
+extern DigitalTempSensor g_dts;
 extern UART<32, 256> g_cliUART;
+
+void InitDTS();
 
 #endif

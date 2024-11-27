@@ -32,6 +32,13 @@
 #include "../tcpip/CommonTCPIP.h"
 
 /**
+	@brief Global Ethernet interface
+
+	Place it in TCM since we're not currently using DMA and TCM is faster for software memory copies
+ */
+__attribute__((section(".tcmbss"))) APBEthernetInterface g_ethIface(&FETHRX, &FETHTX);
+
+/**
 	@brief Initializes the management PHY
  */
 void InitManagementPHY()
@@ -67,4 +74,45 @@ void InitManagementPHY()
 	uint16_t bctl = g_phyMdio->ReadRegister(REG_BASIC_CONTROL);
 	uint16_t bstat = g_phyMdio->ReadRegister(REG_BASIC_STATUS);
 	g_log("bctl %04x bstat %04x\n", bctl, bstat);
+}
+
+/**
+	@brief Set our IP address and initialize the IP stack
+ */
+void InitIP()
+{
+	g_log("Initializing management IPv4 interface\n");
+	LogIndenter li(g_log);
+
+	g_ethIface.Init();
+	ConfigureIP();
+
+	g_log("Our IP address is %d.%d.%d.%d\n",
+		g_ipConfig.m_address.m_octets[0],
+		g_ipConfig.m_address.m_octets[1],
+		g_ipConfig.m_address.m_octets[2],
+		g_ipConfig.m_address.m_octets[3]);
+
+	//ARP cache (shared by all interfaces)
+	static ARPCache cache;
+
+	//Per-interface protocol stacks
+	static EthernetProtocol eth(g_ethIface, g_macAddress);
+	g_ethProtocol = &eth;
+	static ARPProtocol arp(eth, g_ipConfig.m_address, cache);
+
+	//Global protocol stacks
+	static IPv4Protocol ipv4(eth, g_ipConfig, cache);
+	static ICMPv4Protocol icmpv4(ipv4);
+	static IPv6Protocol ipv6(eth, g_ipv6Config);
+	static ICMPv6Protocol icmpv6(ipv6);
+
+	//Register protocol handlers with the lower layer
+	eth.UseARP(&arp);
+	eth.UseIPv4(&ipv4);
+	eth.UseIPv6(&ipv6);
+	ipv4.UseICMPv4(&icmpv4);
+	//ipv6.UseICMPv6(&icmpv6);
+
+	//RegisterProtocolHandlers(ipv4);
 }
