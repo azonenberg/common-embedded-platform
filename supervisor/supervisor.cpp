@@ -53,8 +53,8 @@ char g_ibcHwVersion[20] = {0};
 ///@brief Our firmware version string
 char g_version[20] = {0};
 
-#ifndef NO_IBC
 //Current IBC sensor readings
+#ifndef NO_IBC
 uint16_t g_ibcTemp = 0;
 uint16_t g_ibc3v3 = 0;
 uint16_t g_ibcMcuTemp = 0;
@@ -63,9 +63,11 @@ uint16_t g_vout12 = 0;
 uint16_t g_voutsense = 0;
 uint16_t g_iin = 0;
 uint16_t g_iout = 0;
+#endif
+
+//On-board sensor readings
 uint16_t g_3v3Voltage = 0;
 uint16_t g_mcutemp = 0;
-#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hardware initialization

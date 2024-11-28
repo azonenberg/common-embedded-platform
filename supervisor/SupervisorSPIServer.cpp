@@ -55,6 +55,7 @@ void SupervisorSPIServer::OnCommand(uint8_t b)
 			m_spi.NonblockingWriteFifo((const uint8_t*)g_version, sizeof(g_version));
 			break;
 
+		#ifndef NO_IBC
 		case SUPER_REG_IBCVERSION:
 			m_spi.NonblockingWriteFifo((const uint8_t*)g_ibcSwVersion, sizeof(g_ibcSwVersion));
 			break;
@@ -94,6 +95,7 @@ void SupervisorSPIServer::OnCommand(uint8_t b)
 		case SUPER_REG_IBC3V3:
 			m_spi.NonblockingWriteFifo((const uint8_t*)&g_ibc3v3, sizeof(g_ibc3v3));
 			break;
+		#endif
 
 		case SUPER_REG_MCUTEMP:
 			m_spi.NonblockingWriteFifo((const uint8_t*)&g_mcutemp, sizeof(g_mcutemp));
@@ -107,6 +109,8 @@ void SupervisorSPIServer::OnCommand(uint8_t b)
 		// Firmware update commands etc TODO
 
 		default:
+			if(m_command >= 0x80)
+				OnApplicationCommand(b);
 			break;
 	}
 }
