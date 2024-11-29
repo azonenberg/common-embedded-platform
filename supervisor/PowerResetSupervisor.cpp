@@ -160,31 +160,33 @@ void PowerResetSupervisor::UpdateResets()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Detect loss of power or rail failures and cleanly shut down
 
+/**
+	@brief Check only one rail per iteration since some rail descriptors take time to check (e.g. ADC reads)
+ */
 void PowerResetSupervisor::MonitorRails()
 {
-	for(auto rail : m_railSequence)
-	{
-		//Power lost
-		if(!rail->IsPowerGood())
-		{
-			//Loss of a critical rail triggers a panic shutdown
-			if(rail->IsCritical())
-			{
-				g_log(Logger::ERROR, "Rail %s power failure - panic shutdown\n", rail->GetName());
-				PanicShutdown();
-				return;
-			}
+	auto& rail = m_railSequence[m_monitorRailIndex];
 
-			//Loss of input power triggers the power failure path
-			else if(rail->IsInputSupply())
-			{
-				g_log("Power lost, triggering shutdown sequence\n");
-				OnPowerLost();
-				PowerOff();
-				g_log("Power failure sequence complete, supervisor is still alive\n");
-				//don't hang, if power comes back before we lose supervisor power we should remain alive and respnosive
-				break;
-			}
+	//Power lost?
+	if(!rail->IsPowerGood())
+	{
+		//Loss of a critical rail triggers a panic shutdown
+		if(rail->IsCritical())
+		{
+			g_log(Logger::ERROR, "Rail %s power failure - panic shutdown\n", rail->GetName());
+			PanicShutdown();
+		}
+
+		//Loss of input power triggers the power failure path
+		else if(rail->IsInputSupply())
+		{
+			g_log("Power lost, triggering shutdown sequence\n");
+			OnPowerLost();
+			PowerOff();
+			g_log("Power failure sequence complete, supervisor is still alive\n");
+			//don't hang, if power comes back before we lose supervisor power we should remain alive and respnosive
 		}
 	}
+
+	m_monitorRailIndex = (m_monitorRailIndex + 1) % m_railSequence.size();
 }

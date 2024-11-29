@@ -46,6 +46,7 @@ public:
 		, m_powerOn(false)
 		, m_resetsDone(false)
 		, m_resetSequenceIndex(0)
+		, m_monitorRailIndex(0)
 	{}
 
 	bool IsPowerOn()
@@ -114,6 +115,9 @@ protected:
 
 	///@brief Index of the currently active line in the reset state machine
 	size_t m_resetSequenceIndex;
+
+	///@brief Index of the currently active line in MonitorRails()
+	size_t m_monitorRailIndex;
 };
 
 #endif
