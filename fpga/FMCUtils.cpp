@@ -28,6 +28,7 @@
 ***********************************************************************************************************************/
 
 #include "../core/platform.h"
+#include "FMCUtils.h"
 
 #ifdef HAVE_FMC
 #include <peripheral/FMC.h>

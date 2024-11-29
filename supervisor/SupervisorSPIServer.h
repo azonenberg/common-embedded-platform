@@ -45,7 +45,7 @@ public:
 
 protected:
 	virtual void OnCommand(uint8_t b) override;
-	virtual void OnApplicationCommand(uint8_t b)
+	virtual void OnApplicationCommand([[maybe_unused]] uint8_t b)
 	{};
 
 };

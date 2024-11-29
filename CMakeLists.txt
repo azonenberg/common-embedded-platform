@@ -20,6 +20,10 @@ if(NOT DEFINED CEP_BUILD_TCPIP)
   set(CEP_BUILD_TCPIP 0)
 endif()
 
+if(NOT DEFINED CEP_BUILD_CLI)
+  set(CEP_BUILD_CLI 0)
+endif()
+
 add_subdirectory(bootloader)
 add_subdirectory(core)
 
@@ -37,6 +41,10 @@ endif()
 
 if(CEP_BUILD_BOILERPLATE)
 	add_subdirectory(boilerplate)
+endif()
+
+if(CEP_BUILD_CLI)
+	add_subdirectory(cli)
 endif()
 
 if(CEP_BUILD_TCPIP)
