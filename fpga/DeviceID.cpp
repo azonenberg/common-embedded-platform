@@ -39,6 +39,40 @@ uint32_t g_usercode = 0;
 ///@brief FPGA die serial number
 uint8_t g_fpgaSerial[8] = {0};
 
+const char* GetNameOfFPGA(uint32_t idcode)
+{
+	switch(idcode & 0x0fffffff)
+	{
+		//Kintex-7
+		case 0x3647093:	return "XC7K70T";
+		case 0x364c093:	return "XC7K160T";
+
+		//Spartan-7
+		case 0x3622093:	return "XC7S6";
+		case 0x3620093:	return "XC7S15";
+		case 0x37c4093:	return "XC7S25";
+		case 0x362f093:	return "XC7S50";
+		case 0x37c8093:	return "XC7S75";
+		case 0x37c7093:	return "XC7S100";
+
+		//Artix-7
+		case 0x37c3093:	return "XC7A12T";
+		case 0x362e093:	return "XC7A15T";
+		case 0x37c2093:	return "XC7A25T";
+		case 0x362d093:	return "XC7A35T";
+		case 0x362c093:	return "XC7A50T";
+		case 0x3632093:	return "XC7A75T";
+		case 0x3631093:	return "XC7A100T";
+		case 0x3636093:	return "XC7A200T";
+
+		//Kintex-UltraScale+
+		case 0x4a63093:	return "XCKU3P";
+		//TODO: xcku5p
+
+		default:		return "unknown device";
+	}
+}
+
 /**
 	@brief Initialize our FPGA
 
@@ -80,32 +114,7 @@ void InitFPGA()
 	memcpy(g_fpgaSerial, (const void*)FDEVINFO.serial, 8);
 
 	//Print status
-	switch(idcode & 0x0fffffff)
-	{
-		case 0x3647093:
-			g_log("IDCODE: %08x (XC7K70T rev %d)\n", idcode, idcode >> 28);
-			break;
-
-		case 0x364c093:
-			g_log("IDCODE: %08x (XC7K160T rev %d)\n", idcode, idcode >> 28);
-			break;
-
-		case 0x37c4093:
-			g_log("IDCODE: %08x (XC7S25 rev %d)\n", idcode, idcode >> 28);
-			break;
-
-		case 0x37c7093:
-			g_log("IDCODE: %08x (XC7S100 rev %d)\n", idcode, idcode >> 28);
-			break;
-
-		case 0x4a63093:
-			g_log("IDCODE: %08x (XCKU3P rev %d)\n", idcode, idcode >> 28);
-			break;
-
-		default:
-			g_log("IDCODE: %08x (unknown device, rev %d)\n", idcode, idcode >> 28);
-			break;
-	}
+	g_log("IDCODE: %08x (%s rev %d)\n", idcode, GetNameOfFPGA(idcode), idcode >> 28);
 	g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
 		g_fpgaSerial[7], g_fpgaSerial[6], g_fpgaSerial[5], g_fpgaSerial[4],
 		g_fpgaSerial[3], g_fpgaSerial[2], g_fpgaSerial[1], g_fpgaSerial[0]);

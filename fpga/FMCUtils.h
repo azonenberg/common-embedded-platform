@@ -32,4 +32,6 @@
 
 void InitFMCForFPGA();
 
+const char* GetNameOfFPGA(uint32_t idcode);
+
 #endif
