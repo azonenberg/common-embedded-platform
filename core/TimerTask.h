@@ -59,6 +59,10 @@ public:
 		}
 	}
 
+	//Start the timer to begin now
+	void Restart()
+	{ m_target = g_logTimer.GetCount() + m_period; }
+
 protected:
 	virtual void OnTimer() =0;
 
