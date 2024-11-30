@@ -2,6 +2,7 @@ add_library(common-embedded-platform-tcpip STATIC
 	CommonTCPIP.cpp
 	IPAgingTask.cpp
 	PhyPollTask.cpp
+	SSHKeyManager.cpp
 	)
 
 target_include_directories(common-embedded-platform-tcpip
