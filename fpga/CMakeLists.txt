@@ -1,4 +1,5 @@
 add_library(common-embedded-platform-fpga STATIC
+	AcceleratedCryptoEngine.cpp
 	DeviceID.cpp
 	Ethernet.cpp
 	FMCUtils.cpp
