@@ -164,3 +164,156 @@ void PrintProcessorInfo(CLIOutputStream* stream)
 	else
 		stream->Printf("    Unknown CPU (0x%08x)\n", SCB.CPUID);
 }
+
+/**
+	@brief Print summary information about the KVS
+ */
+void PrintFlashSummary(CLIOutputStream* stream)
+{
+	//Print info about the flash memory in general
+	stream->Printf("Flash configuration storage is 2 banks of %d kB\n", g_kvs->GetBlockSize() / 1024);
+	if(g_kvs->IsLeftBankActive())
+		stream->Printf("    Active bank: Left\n");
+	else
+		stream->Printf("    Active bank: Right\n");
+	stream->Printf("    Header version: %d\n", g_kvs->GetBankHeaderVersion());
+	stream->Printf("    Log area:    %6d / %6d entries free (%d %%)\n",
+		g_kvs->GetFreeLogEntries(),
+		g_kvs->GetLogCapacity(),
+		g_kvs->GetFreeLogEntries()*100 / g_kvs->GetLogCapacity());
+	stream->Printf("    Data area:   %6d / %6d kB free      (%d %%)\n",
+		g_kvs->GetFreeDataSpace() / 1024,
+		g_kvs->GetDataCapacity() / 1024,
+		g_kvs->GetFreeDataSpace() * 100 / g_kvs->GetDataCapacity());
+
+	//Dump directory listing
+	const uint32_t nmax = 256;
+	KVSListEntry list[nmax];
+	uint32_t nfound = g_kvs->EnumObjects(list, nmax);
+	stream->Printf("    Objects:\n");
+	stream->Printf("        Key                               Size  Revisions\n");
+	int size = 0;
+	for(uint32_t i=0; i<nfound; i++)
+	{
+		//If the object has no content, don't show it (it's been deleted)
+		if(list[i].size == 0)
+			continue;
+
+		//Is this a group?
+		auto dotpos = strchr(list[i].key, '.');
+		if(dotpos != nullptr)
+		{
+			//Get the name of the group
+			char groupname[KVS_NAMELEN+1] = {0};
+			auto grouplen = dotpos + 1 - list[i].key;
+			memcpy(groupname, list[i].key, grouplen);
+
+			//If we have a previous key with the same group, we're not the first
+			bool first = true;
+			if(i > 0)
+			{
+				if(memcmp(list[i-1].key, groupname, grouplen) == 0)
+					first = false;
+			}
+
+			//Do we have a subsequent key with the same group?
+			bool next = true;
+			if(i+1 < nfound)
+			{
+				if(memcmp(list[i+1].key, groupname, grouplen) != 0)
+					next = false;
+			}
+			else
+				next = false;
+
+			//Trim off the leading dot in the group
+			groupname[grouplen-1] = '\0';
+
+			//Beginning of a group (with more than one key)? Add the heading
+			if(first && next)
+				stream->Printf("        %-32s\n", groupname);
+
+			//If in a group with >1 item, print the actual entry
+			if(next || !first)
+			{
+				//Print the tree node
+				if(next)
+					stream->Printf("        ├── %-28s %5d  %d\n", list[i].key + grouplen, list[i].size, list[i].revs);
+				else
+					stream->Printf("        └── %-28s %5d  %d\n", list[i].key + grouplen, list[i].size, list[i].revs);
+			}
+
+			//Single entry group, normal print
+			else
+				stream->Printf("        %-32s %5d  %d\n", list[i].key, list[i].size, list[i].revs);
+		}
+
+		//No, not in a group
+		else
+			stream->Printf("        %-32s %5d  %d\n", list[i].key, list[i].size, list[i].revs);
+
+		//Record total data size
+		size += list[i].size;
+	}
+	stream->Printf("    %d objects total (%d.%02d kB)\n",
+		nfound,
+		size/1024, (size % 1024) * 100 / 1024);
+}
+
+/**
+	@brief Print detailed information about a flash object
+ */
+void PrintFlashDetails(CLIOutputStream* stream, const char* objectName)
+{
+	auto hlog = g_kvs->FindObject(objectName);
+	if(!hlog)
+	{
+		stream->Printf("Object not found\n");
+		return;
+	}
+
+	//TODO: show previous versions too?
+	stream->Printf("Object \"%s\":\n", objectName);
+	{
+		stream->Printf("    Start:  0x%08x\n", hlog->m_start);
+		stream->Printf("    Length: 0x%08x\n", hlog->m_len);
+		stream->Printf("    CRC32:  0x%08x\n", hlog->m_crc);
+	}
+
+	auto pdata = g_kvs->MapObject(hlog);
+
+	//TODO: make this a dedicated hexdump routine
+	const uint32_t linelen = 16;
+	for(uint32_t i=0; i<hlog->m_len; i += linelen)
+	{
+		stream->Printf("%04x   ", i);
+
+		//Print hex
+		for(uint32_t j=0; j<linelen; j++)
+		{
+			//Pad with spaces so we get good alignment on the end of the block
+			if(i+j >= hlog->m_len)
+				stream->Printf("   ");
+
+			else
+				stream->Printf("%02x ", pdata[i+j]);
+		}
+
+		stream->Printf("  ");
+
+		//Print ASCII
+		for(uint32_t j=0; j<linelen; j++)
+		{
+			//No padding needed here
+			if(i+j >= hlog->m_len)
+				break;
+
+			else if(isprint(pdata[i+j]))
+				stream->Printf("%c", pdata[i+j]);
+			else
+				stream->Printf(".");
+		}
+
+		stream->Printf("\n");
+	}
+}

@@ -36,4 +36,7 @@
 
 void PrintProcessorInfo(CLIOutputStream* stream);
 
+void PrintFlashSummary(CLIOutputStream* stream);
+void PrintFlashDetails(CLIOutputStream* stream, const char* objectName);
+
 #endif
