@@ -65,10 +65,12 @@ uint8_t g_basetLinkSpeed = 0;
 ///@brief MDIO device for the PHY
 MDIODevice* g_phyMdio = nullptr;
 
-const IPv4Address g_defaultIP			= { .m_octets{ 10,   2,   6,  50} };
-const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
-const IPv4Address g_defaultBroadcast	= { .m_octets{ 10,   2,   6, 255} };
-const IPv4Address g_defaultGateway		= { .m_octets{ 10,   2,   6, 252} };
+//Default IP config, can override if needed in application
+__attribute__((weak)) extern const IPv4Address g_defaultIP			= { .m_octets{ 10,   2,   6,  50} };
+__attribute__((weak)) extern const IPv4Address g_defaultNetmask		= { .m_octets{255, 255, 255,   0} };
+__attribute__((weak)) extern const IPv4Address g_defaultBroadcast	= { .m_octets{ 10,   2,   6, 255} };
+__attribute__((weak)) extern const IPv4Address g_defaultGateway		= { .m_octets{ 10,   2,   6, 252} };
+__attribute__((weak)) extern const IPv4Address g_defaultNtpServer	= { .m_octets{ 10,   2,   5,  26} };
 
 void InitMacEEPROM()
 {

@@ -33,6 +33,7 @@
 #include <staticnet-config.h>
 #include <staticnet/stack/staticnet.h>
 #include "STM32NTPClient.h"
+#include "../tcpip/CommonTCPIP.h"
 
 ///@brief KVS key for NTP enable state
 static const char* g_ntpEnableObjectID = "ntp.enable";

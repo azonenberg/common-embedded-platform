@@ -52,6 +52,7 @@ extern const IPv4Address g_defaultIP;
 extern const IPv4Address g_defaultNetmask;
 extern const IPv4Address g_defaultBroadcast;
 extern const IPv4Address g_defaultGateway;
+extern const IPv4Address g_defaultNtpServer;
 
 ///@brief I2C bus going to MAC address EEPROM
 extern I2C g_macI2C;

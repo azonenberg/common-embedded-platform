@@ -68,7 +68,4 @@ protected:
 	int64_t m_utcOffset;
 };
 
-///@brief Default NTP server if not specified in KVS (user code must provide this)
-extern const IPv4Address g_defaultNtpServer;
-
 #endif
