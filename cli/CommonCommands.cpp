@@ -27,6 +27,8 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+#include <fpga/AcceleratedCryptoEngine.h>
+#include <staticnet/stack/staticnet.h>
 #include "CommonCommands.h"
 
 /**
@@ -315,5 +317,55 @@ void PrintFlashDetails(CLIOutputStream* stream, const char* objectName)
 		}
 
 		stream->Printf("\n");
+	}
+}
+
+void RemoveFlashKey(CLIOutputStream* stream, const char* key)
+{
+	auto hlog = g_kvs->FindObject(key);
+	if(hlog)
+	{
+		if(!g_kvs->StoreObject(key, nullptr, 0))
+			stream->Printf("KVS write error\n");
+		else
+			stream->Printf("Object \"%s\" deleted\n", key);
+	}
+	else
+		stream->Printf("Object \"%s\" not found, could not delete\n", key);
+}
+
+void PrintSSHHostKey(CLIOutputStream* stream)
+{
+	char buf[64] = {0};
+	AcceleratedCryptoEngine tmp;
+	tmp.GetHostKeyFingerprint(buf, sizeof(buf));
+	stream->Printf("ED25519 key fingerprint is SHA256:%s.\n", buf);
+}
+
+void PrintARPCache(CLIOutputStream* stream, EthernetProtocol* eth)
+{
+	auto cache = eth->GetARP()->GetCache();
+
+	uint32_t ways = cache->GetWays();
+	uint32_t lines = cache->GetLines();
+	stream->Printf("ARP cache is %d ways of %d lines, %d spaces total\n", ways, lines, ways*lines);
+
+	stream->Printf("Expiration  HWaddress           Address\n");
+
+	for(uint32_t i=0; i<ways; i++)
+	{
+		auto way = cache->GetWay(i);
+		for(uint32_t j=0; j<lines; j++)
+		{
+			auto& line = way->m_lines[j];
+			if(line.m_valid)
+			{
+				stream->Printf("%10d  %02x:%02x:%02x:%02x:%02x:%02x   %d.%d.%d.%d\n",
+					line.m_lifetime,
+					line.m_mac[0], line.m_mac[1], line.m_mac[2], line.m_mac[3], line.m_mac[4], line.m_mac[5],
+					line.m_ip.m_octets[0], line.m_ip.m_octets[1], line.m_ip.m_octets[2], line.m_ip.m_octets[3]
+				);
+			}
+		}
 	}
 }

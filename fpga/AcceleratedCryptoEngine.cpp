@@ -31,6 +31,9 @@
 #include "AcceleratedCryptoEngine.h"
 #include "../../../staticnet/contrib/tweetnacl_25519.h"
 
+//DEBUG
+//#define CRYPTO_PROFILE
+
 //curve25519 unpacked base point: {X, Y, gf1, X*Y}
 //(1 and x*y now computed on FPGA)
 //TODO: this is a constant, we should be able to store this on the FPGA somewhere and not waste SPI BW
@@ -47,51 +50,45 @@ AcceleratedCryptoEngine::AcceleratedCryptoEngine()
 {
 }
 
-void AcceleratedCryptoEngine::BlockUntilAcceleratorDone()
-{
-	//StatusRegisterMaskedWait(&g_curve25519->status, &g_curve25519->status2, 0x1, 0x0);
-	g_log(Logger::ERROR, "Not implemented\n");
-	while(1)
-	{}
-}
-
 /**
 	@brief Debug utility for printing a key to the console
  */
 void AcceleratedCryptoEngine::PrintBlock(const char* keyname, const uint8_t* key)
 {
-	/*
-	g_cliUART.Printf("%20s = %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
+	g_log("%20s = %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x"
 		"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
 		keyname,
 		key[31], key[30], key[29], key[28], key[27], key[26], key[25], key[24],
 		key[23], key[22], key[21], key[20], key[19], key[18], key[17], key[16],
 		key[15], key[14], key[13], key[12], key[11], key[10], key[9], key[8],
 		key[7], key[6], key[5], key[4], key[3], key[2], key[1], key[0]);
-	*/
 }
 
 void AcceleratedCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clientPublicKey)
 {
-	/*
 	#ifdef CRYPTO_PROFILE
-	auto t1 = g_logTimer->GetCount();
+	auto t1 = g_logTimer.GetCount();
 	#endif
 
-	g_apbfpga.BlockingWriteN(g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
-	g_apbfpga.BlockingWriteN(g_curve25519->work, clientPublicKey, ECDH_KEY_SIZE);
-	g_apbfpga.BlockingWrite32(&g_curve25519->cmd, CMD_CRYPTO_SCALARMULT);
+	auto e = reinterpret_cast<uint32_t*>(m_ephemeralkeyPriv);
+	for(int i=0; i<8; i++)
+		FCURVE25519.e[i] = e[i];
+
+	auto work = reinterpret_cast<uint32_t*>(clientPublicKey);
+	for(int i=0; i<8; i++)
+		FCURVE25519.work[i] = work[i];
+
+	FCURVE25519.cmd = CMD_CRYPTO_SCALARMULT;
 	BlockUntilAcceleratorDone();
-	memcpy(sharedSecret, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
+
+	auto shared = reinterpret_cast<uint32_t*>(sharedSecret);
+	for(int i=0; i<8; i++)
+		shared[i] = FCURVE25519.data_out[i];
 
 	#ifdef CRYPTO_PROFILE
-	auto delta = g_logTimer->GetCount() - t1;
+	auto delta = g_logTimer.GetCount() - t1;
 	g_log("AcceleratedCryptoEngine::SharedSecret (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
 	#endif
-	*/
-	g_log(Logger::ERROR, "Not implemented\n");
-	while(1)
-	{}
 }
 
 /**
@@ -103,9 +100,8 @@ void AcceleratedCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clien
  */
 void AcceleratedCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 {
-	/*
 	#ifdef CRYPTO_PROFILE
-	auto t1 = g_logTimer->GetCount();
+	auto t1 = g_logTimer.GetCount();
 	#endif
 
 	//To be a valid key, a few bits need well-defined values. The rest are cryptographic randomness.
@@ -122,20 +118,25 @@ void AcceleratedCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 	};
 
 	//Make the FPGA do the rest of the work
-	g_apbfpga.BlockingWriteN(g_curve25519->e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
-	g_apbfpga.BlockingWriteN(g_curve25519->work, basepoint, ECDH_KEY_SIZE);
-	g_apbfpga.BlockingWrite32(&g_curve25519->cmd, CMD_CRYPTO_SCALARMULT);
+	auto e = reinterpret_cast<uint32_t*>(m_ephemeralkeyPriv);
+	for(int i=0; i<8; i++)
+		FCURVE25519.e[i] = e[i];
+
+	auto work = reinterpret_cast<uint32_t*>(basepoint);
+	for(int i=0; i<8; i++)
+		FCURVE25519.work[i] = work[i];
+
+	FCURVE25519.cmd = CMD_CRYPTO_SCALARMULT;
 	BlockUntilAcceleratorDone();
-	memcpy(pub, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
+
+	auto pubout = reinterpret_cast<uint32_t*>(pub);
+	for(int i=0; i<8; i++)
+		pubout[i] = FCURVE25519.data_out[i];
 
 	#ifdef CRYPTO_PROFILE
-	auto delta = g_logTimer->GetCount() - t1;
+	auto delta = g_logTimer.GetCount() - t1;
 	g_log("AcceleratedCryptoEngine::GenerateX25519KeyPair (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
 	#endif
-	*/
-	g_log(Logger::ERROR, "Not implemented\n");
-	while(1)
-	{}
 }
 
 /**
@@ -145,9 +146,8 @@ void AcceleratedCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
  */
 bool AcceleratedCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t lengthIncludingSignature, uint8_t* publicKey)
 {
-	/*
 	#ifdef CRYPTO_PROFILE
-	auto t1 = g_logTimer->GetCount();
+	auto t1 = g_logTimer.GetCount();
 	#endif
 
 	//fixed length cap
@@ -173,7 +173,7 @@ bool AcceleratedCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t l
 		return false;
 
 	#ifdef CRYPTO_PROFILE
-	auto t2 = g_logTimer->GetCount();
+	auto t2 = g_logTimer.GetCount();
 	#endif
 
 	//Expanded public key for sending to accelerator
@@ -186,46 +186,62 @@ bool AcceleratedCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t l
 
 	//Calculate the expected signature
 	//scalarmult(p, q, hash);
-	g_apbfpga.BlockingWriteN(g_curve25519->e, hash, ECDSA_KEY_SIZE);
-	g_apbfpga.BlockingWriteN(g_curve25519->q0, qref, ECDSA_KEY_SIZE*2);
+	auto e = reinterpret_cast<uint32_t*>(hash);
+	for(int i=0; i<8; i++)
+		FCURVE25519.e[i] = e[i];
+	auto pqref = reinterpret_cast<uint32_t*>(qref);
+	for(int i=0; i<8; i++)
+		FCURVE25519.q0[i] = pqref[i];
+	for(int i=0; i<8; i++)
+		FCURVE25519.q1[i] = pqref[i+8];
+
 	BlockUntilAcceleratorDone();
-	uint8_t pfpga[128];
+
+	uint32_t pfpga[32];
+	auto pfpga2 = reinterpret_cast<uint8_t*>(&pfpga[0]);
 	for(int block=0; block<4; block++)
 	{
-		g_curve25519->rd_addr = block;
-		asm("dmb st");
-		memcpy(pfpga + block*32, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
+		FCURVE25519.rd_addr = block;
+		for(int i=0; i<8; i++)
+			pfpga[block*8 + i] = FCURVE25519.data_out[i];
 	}
 
 	#ifdef CRYPTO_PROFILE
-	auto t3 = g_logTimer->GetCount();
+	auto t3 = g_logTimer.GetCount();
 	#endif
 
 	//scalarbase(q, signedMessage + 32);
-	g_apbfpga.BlockingWriteN(g_curve25519->e, signedMessage+32, ECDSA_KEY_SIZE);
-	g_apbfpga.BlockingWriteN(g_curve25519->base_q0, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
+	e = reinterpret_cast<uint32_t*>(signedMessage + 32);
+	for(int i=0; i<8; i++)
+		FCURVE25519.e[i] = e[i];
+	auto base = reinterpret_cast<const uint32_t*>(g_curve25519BasePointUnpacked);
+	for(int i=0; i<8; i++)
+		FCURVE25519.base_q0[i] = base[i];
+
 	BlockUntilAcceleratorDone();
-	uint8_t qfpga[128];
+
+	uint32_t qfpga[32];
+	auto qfpga2 = reinterpret_cast<uint8_t*>(&qfpga[0]);
 	for(int block=0; block<4; block++)
 	{
-		g_curve25519->rd_addr = block;
-		asm("dmb st");
-		memcpy(qfpga + block*32, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
+		FCURVE25519.rd_addr = block;
+		for(int i=0; i<8; i++)
+			qfpga[block*8 + i] = FCURVE25519.data_out[i];
 	}
 
 	#ifdef CRYPTO_PROFILE
-	auto t4 = g_logTimer->GetCount();
+	auto t4 = g_logTimer.GetCount();
 	#endif
 
 	//Unpack results from the FPGA
-	unpack25519(p[0], &pfpga[0]);
-	unpack25519(p[1], &pfpga[32]);
-	unpack25519(p[2], &pfpga[64]);
-	unpack25519(p[3], &pfpga[96]);
-	unpack25519(q[0], &qfpga[0]);
-	unpack25519(q[1], &qfpga[32]);
-	unpack25519(q[2], &qfpga[64]);
-	unpack25519(q[3], &qfpga[96]);
+	unpack25519(p[0], &pfpga2[0]);
+	unpack25519(p[1], &pfpga2[32]);
+	unpack25519(p[2], &pfpga2[64]);
+	unpack25519(p[3], &pfpga2[96]);
+	unpack25519(q[0], &qfpga2[0]);
+	unpack25519(q[1], &qfpga2[32]);
+	unpack25519(q[2], &qfpga2[64]);
+	unpack25519(q[3], &qfpga2[96]);
 
 	//Final addition... we really should try to keep this on the FPGA if possible
 	add(p,q);
@@ -238,7 +254,7 @@ bool AcceleratedCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t l
 		return false;
 
 	#ifdef CRYPTO_PROFILE
-	auto tend = g_logTimer->GetCount();
+	auto tend = g_logTimer.GetCount();
 	auto delta = tend - t1;
 	g_log("AcceleratedCryptoEngine::VerifySignature (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
 	LogIndenter li(g_log);
@@ -252,20 +268,14 @@ bool AcceleratedCryptoEngine::VerifySignature(uint8_t* signedMessage, uint32_t l
 	g_log("Final (no acceleration): %d.%d ms\n", delta/10, delta%10);
 	#endif
 
-	return true;*/
-
-	g_log(Logger::ERROR, "Not implemented\n");
-	while(1)
-	{}
-	return false;
+	return true;
 }
 
 ///@brief Signs an exchange hash with our host key
 void AcceleratedCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash)
 {
-	/*
 	#ifdef CRYPTO_PROFILE
-	auto t1 = g_logTimer->GetCount();
+	auto t1 = g_logTimer.GetCount();
 	#endif
 
 	//Hash the private key and massage it to make sure it's a valid curve point
@@ -287,24 +297,32 @@ void AcceleratedCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchang
 
 	//Actual signing stuff
 	//scalarbase(p,bufferHash);
-	g_apbfpga.BlockingWriteN(g_curve25519->e, bufferHash, ECDSA_KEY_SIZE);
-	g_apbfpga.BlockingWriteN(g_curve25519->base_q0, g_curve25519BasePointUnpacked, ECDSA_KEY_SIZE);
+	auto e = reinterpret_cast<uint32_t*>(bufferHash);
+	for(int i=0; i<8; i++)
+		FCURVE25519.e[i] = e[i];
+
+	auto base = reinterpret_cast<const uint32_t*>(g_curve25519BasePointUnpacked);
+	for(int i=0; i<8; i++)
+		FCURVE25519.base_q0[i] = base[i];
+
 	BlockUntilAcceleratorDone();
-	uint8_t pfpga[128];
+
+	uint32_t pfpga[32];
 	for(int block=0; block<4; block++)
 	{
-		g_curve25519->rd_addr = block;
-		asm("dmb st");
-		memcpy(pfpga + block*32, (void*)g_curve25519->data_out, ECDH_KEY_SIZE);
+		FCURVE25519.rd_addr = block;
+		for(int i=0; i<8; i++)
+			pfpga[block*8 + i] = FCURVE25519.data_out[i];
 	}
 
 	//Unpack and repack the result and save in q
 	//Optimization: skip processing of the final word since it's not used by pack()
+	auto pfpga2 = reinterpret_cast<uint8_t*>(&pfpga[0]);
 	gf p[4];
-	unpack25519(p[0], &pfpga[0]);
-	unpack25519(p[1], &pfpga[32]);
-	unpack25519(p[2], &pfpga[64]);
-	//unpack25519(p[3], &pfpga[96]);
+	unpack25519(p[0], pfpga2);
+	unpack25519(p[1], pfpga2 + 32);
+	unpack25519(p[2], pfpga2 + 64);
+	//unpack25519(p[3], pfpga2 + 96);
 
 	//pack(sm,p);
 	gf tx, ty, zi;
@@ -335,12 +353,7 @@ void AcceleratedCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchang
 	memcpy(sigOut, sm, 64);
 
 	#ifdef CRYPTO_PROFILE
-	auto delta = g_logTimer->GetCount() - t1;
+	auto delta = g_logTimer.GetCount() - t1;
 	g_log("AcceleratedCryptoEngine::SignExchangeHash (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
 	#endif
-	*/
-
-	g_log(Logger::ERROR, "Not implemented\n");
-	while(1)
-	{}
 }

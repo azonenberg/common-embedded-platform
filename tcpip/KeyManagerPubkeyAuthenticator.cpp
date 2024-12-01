@@ -1,6 +1,6 @@
 /***********************************************************************************************************************
 *                                                                                                                      *
-* common-embedded-platform                                                                                             *
+* trigger-crossbar                                                                                                     *
 *                                                                                                                      *
 * Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
@@ -27,22 +27,36 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef CEP_CLI_CommonCommands_h
-#define CEP_CLI_CommonCommands_h
-
 #include <core/platform.h>
-#include <embedded-cli/CLIOutputStream.h>
-#include <embedded-cli/CLISessionContext.h>
-class EthernetProtocol;
+#include "KeyManagerPubkeyAuthenticator.h"
+#include <staticnet/ssh/SSHTransportServer.h>
 
-void PrintProcessorInfo(CLIOutputStream* stream);
+bool KeyManagerPubkeyAuthenticator::CanUseKey(
+	const char* username,
+	uint16_t username_len,
+	const SSHCurve25519KeyBlob* keyblob,
+	bool actualLoginAttempt
+	)
+{
+	if(!SSHTransportServer::StringMatchWithLength(m_username, username, username_len))
+		return false;
 
-void PrintFlashSummary(CLIOutputStream* stream);
-void PrintFlashDetails(CLIOutputStream* stream, const char* objectName);
-void RemoveFlashKey(CLIOutputStream* stream, const char* key);
+	//Null terminate username for debug logging
+	char nuname[SSH_MAX_USERNAME+1] = {0};
+	memcpy(nuname, username, username_len);
 
-void PrintSSHHostKey(CLIOutputStream* stream);
+	//Check if key is authorized
+	auto idx = m_mgr.FindKey(keyblob->m_pubKey);
+	if(idx < 0)
+	{
+		if(actualLoginAttempt)
+			g_log("SSH login rejected from user %s using unrecognized key\n", nuname);
 
-void PrintARPCache(CLIOutputStream* stream, EthernetProtocol* eth);
+		return false;
+	}
 
-#endif
+	//It's good, log it if they're trying to log in (don't log soft queries of "is this key acceptable")
+	if(actualLoginAttempt)
+		g_log("SSH login attempt from user %s using key %s\n", nuname, m_mgr.m_authorizedKeys[idx].m_nickname);
+	return true;
+}

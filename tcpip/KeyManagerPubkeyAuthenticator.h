@@ -27,22 +27,42 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef CEP_CLI_CommonCommands_h
-#define CEP_CLI_CommonCommands_h
+/**
+	@file
+	@brief Declaration of KeyManagerPubkeyAuthenticator
+ */
+#ifndef KeyManagerPubkeyAuthenticator_h
+#define KeyManagerPubkeyAuthenticator_h
 
-#include <core/platform.h>
-#include <embedded-cli/CLIOutputStream.h>
-#include <embedded-cli/CLISessionContext.h>
-class EthernetProtocol;
+#include <staticnet/stack/staticnet.h>
+#include <staticnet/ssh/SSHPubkeyAuthenticator.h>
+#include "SSHKeyManager.h"
 
-void PrintProcessorInfo(CLIOutputStream* stream);
+/**
+	@brief Base class for public key authentication providers
+ */
+class KeyManagerPubkeyAuthenticator : public SSHPubkeyAuthenticator
+{
+public:
+	KeyManagerPubkeyAuthenticator(const char* username, SSHKeyManager& mgr)
+	: m_username(username)
+	, m_mgr(mgr)
+	{}
 
-void PrintFlashSummary(CLIOutputStream* stream);
-void PrintFlashDetails(CLIOutputStream* stream, const char* objectName);
-void RemoveFlashKey(CLIOutputStream* stream, const char* key);
+	virtual bool CanUseKey(
+		const char* username,
+		uint16_t username_len,
+		const SSHCurve25519KeyBlob* keyblob,
+		bool actualLoginAttempt
+		) override;
 
-void PrintSSHHostKey(CLIOutputStream* stream);
+protected:
 
-void PrintARPCache(CLIOutputStream* stream, EthernetProtocol* eth);
+	///@brief Our single valid username
+	const char* m_username;
+
+	///@brief Database of authorized SSH keys
+	SSHKeyManager& m_mgr;
+};
 
 #endif

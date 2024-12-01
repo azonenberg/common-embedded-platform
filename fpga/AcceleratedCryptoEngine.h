@@ -33,6 +33,8 @@
 #include <staticnet/drivers/stm32/STM32CryptoEngine.h>
 #include <APB_Curve25519.h>
 
+extern volatile APB_Curve25519 FCURVE25519;
+
 /**
 	@brief Extension of STM32CryptoEngine using our FPGA curve25519 accelerator
  */
@@ -47,11 +49,14 @@ public:
 	virtual void SignExchangeHash(uint8_t* sigOut, uint8_t* exchangeHash) override;
 
 protected:
-	void BlockUntilAcceleratorDone();
+	void BlockUntilAcceleratorDone()
+	{
+		asm("dmb st");
+		while(FCURVE25519.status != 0)
+		{}
+	}
 
 	void PrintBlock(const char* keyname, const uint8_t* key);
 };
-
-extern volatile APB_Curve25519 FCURVE25519;
 
 #endif
