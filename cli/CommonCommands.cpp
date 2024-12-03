@@ -28,7 +28,6 @@
 ***********************************************************************************************************************/
 
 #include <fpga/AcceleratedCryptoEngine.h>
-#include <staticnet/stack/staticnet.h>
 #include "CommonCommands.h"
 
 /**
@@ -366,6 +365,199 @@ void PrintARPCache(CLIOutputStream* stream, EthernetProtocol* eth)
 					line.m_ip.m_octets[0], line.m_ip.m_octets[1], line.m_ip.m_octets[2], line.m_ip.m_octets[3]
 				);
 			}
+		}
+	}
+}
+
+bool ParseIPAddress(const char* addr, IPv4Address& ip)
+{
+	int len = strlen(addr);
+
+	int nfield = 0;
+	unsigned int fields[4] = {0};
+
+	//Parse
+	for(int i=0; i<len; i++)
+	{
+		//Dot = move to next field
+		if( (addr[i] == '.') && (nfield < 3) )
+			nfield ++;
+
+		//Digit = update current field
+		else if(isdigit(addr[i]))
+			fields[nfield] = (fields[nfield] * 10) + (addr[i] - '0');
+
+		else
+			return false;
+	}
+
+	//Validate
+	if(nfield != 3)
+		return false;
+	for(int i=0; i<4; i++)
+	{
+		if(fields[i] > 255)
+			return false;
+	}
+
+	//Set the IP
+	for(int i=0; i<4; i++)
+		ip.m_octets[i] = fields[i];
+	return true;
+}
+
+bool ParseIPAddressWithSubnet(const char* addr, IPv4Address& ip, uint32_t& mask)
+{
+	int len = strlen(addr);
+
+	int nfield = 0;	//0-3 = IP, 4 = netmask
+	unsigned int fields[5] = {0};
+
+	//Parse
+	for(int i=0; i<len; i++)
+	{
+		//Dot = move to next field
+		if( (addr[i] == '.') && (nfield < 3) )
+			nfield ++;
+
+		//Slash = move to netmask
+		else if( (addr[i] == '/') && (nfield == 3) )
+			nfield ++;
+
+		//Digit = update current field
+		else if(isdigit(addr[i]))
+			fields[nfield] = (fields[nfield] * 10) + (addr[i] - '0');
+
+		else
+			return false;
+	}
+
+	//Validate
+	if(nfield != 4)
+		return false;
+	for(int i=0; i<4; i++)
+	{
+		if(fields[i] > 255)
+			return false;
+	}
+	if( (fields[4] > 32) || (fields[4] == 0) )
+		return false;
+
+	//Set the IP
+	for(int i=0; i<4; i++)
+		ip.m_octets[i] = fields[i];
+
+	mask = 0xffffffff << (32 - fields[4]);
+	return true;
+}
+
+void SetIPAddress(CLIOutputStream* stream, const char* addr)
+{
+	//Parse the base IP address
+	uint32_t mask = 0;
+	if(!ParseIPAddressWithSubnet(addr, g_ipConfig.m_address, mask))
+	{
+		stream->Printf("Usage: ip address x.x.x.x/yy\n");
+		return;
+	}
+
+	//Calculate the netmask
+	g_ipConfig.m_netmask.m_octets[0] = (mask >> 24) & 0xff;
+	g_ipConfig.m_netmask.m_octets[1] = (mask >> 16) & 0xff;
+	g_ipConfig.m_netmask.m_octets[2] = (mask >> 8) & 0xff;
+	g_ipConfig.m_netmask.m_octets[3] = (mask >> 0) & 0xff;
+
+	//Calculate the broadcast address
+	for(int i=0; i<4; i++)
+		g_ipConfig.m_broadcast.m_octets[i] = g_ipConfig.m_address.m_octets[i] | ~g_ipConfig.m_netmask.m_octets[i];
+}
+
+void PrintIPAddress(CLIOutputStream* stream)
+{
+	stream->Printf("IPv4 address: %d.%d.%d.%d\n",
+		g_ipConfig.m_address.m_octets[0],
+		g_ipConfig.m_address.m_octets[1],
+		g_ipConfig.m_address.m_octets[2],
+		g_ipConfig.m_address.m_octets[3]
+	);
+
+	stream->Printf("Subnet mask:  %d.%d.%d.%d\n",
+		g_ipConfig.m_netmask.m_octets[0],
+		g_ipConfig.m_netmask.m_octets[1],
+		g_ipConfig.m_netmask.m_octets[2],
+		g_ipConfig.m_netmask.m_octets[3]
+	);
+
+	stream->Printf("Broadcast:    %d.%d.%d.%d\n",
+		g_ipConfig.m_broadcast.m_octets[0],
+		g_ipConfig.m_broadcast.m_octets[1],
+		g_ipConfig.m_broadcast.m_octets[2],
+		g_ipConfig.m_broadcast.m_octets[3]
+	);
+}
+
+void PrintDefaultRoute(CLIOutputStream* stream)
+{
+	stream->Printf("IPv4 routing table\n");
+	stream->Printf("Destination     Gateway\n");
+	stream->Printf("0.0.0.0         %d.%d.%d.%d\n",
+		g_ipConfig.m_gateway.m_octets[0],
+		g_ipConfig.m_gateway.m_octets[1],
+		g_ipConfig.m_gateway.m_octets[2],
+		g_ipConfig.m_gateway.m_octets[3]);
+}
+
+void PrintNTP(CLIOutputStream* stream, STM32NTPClient& ntp)
+{
+	if(ntp.IsEnabled())
+	{
+		stream->Printf("NTP client enabled\n");
+		auto ip = ntp.GetServerAddress();
+
+		if(ntp.IsSynchronized())
+		{
+			tm synctime;
+			uint16_t syncsub;
+			ntp.GetLastSync(synctime, syncsub);
+
+			stream->Printf("Last synchronized to server %d.%d.%d.%d at %04d-%02d-%02dT%02d:%02d:%02d.%04d\n",
+				ip.m_octets[0], ip.m_octets[1], ip.m_octets[2], ip.m_octets[3],
+				synctime.tm_year + 1900,
+				synctime.tm_mon+1,
+				synctime.tm_mday,
+				synctime.tm_hour,
+				synctime.tm_min,
+				synctime.tm_sec,
+				syncsub);
+		}
+		else
+		{
+			stream->Printf("Using server %d.%d.%d.%d (not currently synchronized)\n",
+				ip.m_octets[0], ip.m_octets[1], ip.m_octets[2], ip.m_octets[3] );
+		}
+
+	}
+	else
+		stream->Printf("NTP client disabled\n");
+}
+
+void PrintSSHKeys(CLIOutputStream* stream, SSHKeyManager& mgr)
+{
+	stream->Printf("Authorized keys:\n");
+	stream->Printf("Slot  Nickname                        Fingerprint\n");
+
+	AcceleratedCryptoEngine tmp;
+	char fingerprint[64];
+
+	for(int i=0; i<MAX_SSH_KEYS; i++)
+	{
+		if(mgr.m_authorizedKeys[i].m_nickname[0] != '\0')
+		{
+			tmp.GetKeyFingerprint(fingerprint, sizeof(fingerprint), mgr.m_authorizedKeys[i].m_pubkey);
+			stream->Printf("%2d    %-30s  SHA256:%s\n",
+				i,
+				mgr.m_authorizedKeys[i].m_nickname,
+				fingerprint);
 		}
 	}
 }

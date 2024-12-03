@@ -31,8 +31,13 @@
 #define CEP_CLI_CommonCommands_h
 
 #include <core/platform.h>
+#include <staticnet/stack/staticnet.h>
 #include <embedded-cli/CLIOutputStream.h>
 #include <embedded-cli/CLISessionContext.h>
+#include "../tcpip/CommonTCPIP.h"
+#include "../tcpip/SSHKeyManager.h"
+#include "../services/STM32NTPClient.h"
+
 class EthernetProtocol;
 
 void PrintProcessorInfo(CLIOutputStream* stream);
@@ -44,5 +49,17 @@ void RemoveFlashKey(CLIOutputStream* stream, const char* key);
 void PrintSSHHostKey(CLIOutputStream* stream);
 
 void PrintARPCache(CLIOutputStream* stream, EthernetProtocol* eth);
+
+void SetIPAddress(CLIOutputStream* stream, const char* addr);
+
+bool ParseIPAddress(const char* addr, IPv4Address& ip);
+bool ParseIPAddressWithSubnet(const char* addr, IPv4Address& ip, uint32_t& mask);
+
+void PrintNTP(CLIOutputStream* stream, STM32NTPClient& ntp);
+
+void PrintSSHKeys(CLIOutputStream* stream, SSHKeyManager& mgr);
+
+void PrintIPAddress(CLIOutputStream* stream);
+void PrintDefaultRoute(CLIOutputStream* stream);
 
 #endif
