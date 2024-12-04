@@ -3,6 +3,7 @@ add_library(common-embedded-platform-fpga STATIC
 	DeviceID.cpp
 	Ethernet.cpp
 	FMCUtils.cpp
+	FPGAFirmwareUpdater.cpp
 	)
 
 target_include_directories(common-embedded-platform-fpga
