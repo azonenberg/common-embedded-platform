@@ -30,9 +30,9 @@
 #include <core/platform.h>
 #include "CommonTCPIP.h"
 #include <fpga/Ethernet.h>
-#include "IPAgingTask.h"
+#include "IPAgingTask10Hz.h"
 
-void IPAgingTask::OnTimer()
+void IPAgingTask10Hz::OnTimer()
 {
-	g_ethProtocol->OnAgingTick();
+	g_ethProtocol->OnAgingTick10x();
 }

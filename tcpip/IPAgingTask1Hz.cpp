@@ -27,21 +27,12 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef IPAgingTask_h
-#define IPAgingTask_h
+#include <core/platform.h>
+#include "CommonTCPIP.h"
+#include <fpga/Ethernet.h>
+#include "IPAgingTask1Hz.h"
 
-#include <core/TimerTask.h>
-
-class IPAgingTask : public TimerTask
+void IPAgingTask1Hz::OnTimer()
 {
-public:
-	IPAgingTask()
-		: TimerTask(0, 10 * 1000)
-	{}
-
-protected:
-	virtual void OnTimer() override;
-};
-
-#endif
-
+	g_ethProtocol->OnAgingTick();
+}

@@ -1,6 +1,7 @@
 add_library(common-embedded-platform-tcpip STATIC
 	CommonTCPIP.cpp
-	IPAgingTask.cpp
+	IPAgingTask1Hz.cpp
+	IPAgingTask10Hz.cpp
 	KeyManagerPubkeyAuthenticator.cpp
 	PhyPollTask.cpp
 	SSHKeyManager.cpp
