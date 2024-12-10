@@ -81,20 +81,6 @@ void BSP_InitClocks()
 		RCCHelper::CLOCK_SOURCE_HSE
 	);
 
-	//Set up PLL2 to run the external memory bus
-	//We have some freedom with how fast we clock this!
-	//Doesn't have to be a multiple of 500 since separate VCO from the main system
-	RCCHelper::InitializePLL(
-		2,		//PLL2
-		25,		//input is 25 MHz from the HSE
-		2,		//25/2 = 12.5 MHz at the PFD
-		16,		//12.5 * 16 = 200 MHz at the VCO
-		32,		//div P (not used for now)
-		32,		//div Q (not used for now)
-		1,		//div R (200 MHz FMC kernel clock = 100 MHz FMC clock)
-		RCCHelper::CLOCK_SOURCE_HSE
-	);
-
 	//Set up main system clock tree
 	RCCHelper::InitializeSystemClocks(
 		1,		//sysclk = 500 MHz
