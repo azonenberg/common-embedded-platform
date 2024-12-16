@@ -40,6 +40,8 @@ Iperf3Server::Iperf3Server(TCPProtocol& tcp, UDPProtocol& udp)
 	: TCPServer(tcp)
 	, m_udp(udp)
 {
+	//Register ourselves automatically in the task table
+	g_tasks.push_back(this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -518,7 +520,7 @@ void Iperf3Server::OnJsonConfigField(int id, const char* name, const char* value
 #ifdef HAVE_ITCM
 __attribute__((section(".tcmtext")))
 #endif
-void Iperf3Server::SendDataOnActiveStreams()
+void Iperf3Server::Iteration()
 {
 	//Check if any of our sockets are in TEST_RUNNING
 	for(size_t i=0; i<MAX_IPERF_CLIENTS; i++)

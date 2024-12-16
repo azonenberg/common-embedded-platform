@@ -29,6 +29,8 @@
 
 #include "../core/platform.h"
 
+const char* GetNameOfFPGA(uint32_t idcode);
+
 //TODO: ifdefs to specify what type of fpga we have
 #include <APB_DeviceInfo_7series.h>
 extern volatile APB_DeviceInfo_7series FDEVINFO;

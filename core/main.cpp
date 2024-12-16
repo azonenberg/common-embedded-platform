@@ -111,7 +111,10 @@ void __attribute__((noreturn)) Reset()
 
 void __attribute__((weak)) BSP_MainLoop()
 {
+	g_log("Total tasks: %d of %d slots\n", g_tasks.size(), g_tasks.capacity());
+	g_log("Timer tasks: %d of %d slots\n", g_timerTasks.size(), g_timerTasks.capacity());
 	g_log("Ready\n");
+
 	while(1)
 	{
 		//Check for overflows on our timer

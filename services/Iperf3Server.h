@@ -116,7 +116,9 @@ public:
 	uint32_t m_sequence;
 };
 
-class Iperf3Server : public TCPServer<MAX_IPERF_CLIENTS, IperfConnectionState>
+class Iperf3Server
+	: public TCPServer<MAX_IPERF_CLIENTS, IperfConnectionState>
+	, public Task
 {
 public:
 	Iperf3Server(TCPProtocol& tcp, UDPProtocol& udp);
@@ -128,7 +130,7 @@ public:
 	virtual void GracefulDisconnect(int id, TCPTableEntry* socket) override;
 	virtual void DropConnection(int id, TCPTableEntry* socket);
 
-	void SendDataOnActiveStreams();
+	virtual void Iteration() override;
 
 	virtual void OnRxUdpData(IPv4Address srcip, uint16_t sport, uint16_t dport, uint8_t* payload, uint16_t payloadLen);
 
