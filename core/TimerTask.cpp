@@ -27,42 +27,14 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef TimerTask_h
-#define TimerTask_h
+#include "platform.h"
 
-#include "Task.h"
-
-/**
-	@brief A task that executes a function at regular intervals
- */
-class TimerTask : public Task
+void TimerTask::Iteration()
 {
-public:
-	TimerTask(uint32_t initialOffset, uint32_t period)
-		: m_target(g_logTimer.GetCount() + initialOffset)
-		, m_period(period)
-	{}
-
-	void OnTimerShift(uint32_t delta)
+	auto now = g_logTimer.GetCount();
+	if(now >= m_target)
 	{
-		if(m_target > delta)
-			m_target -= delta;
+		OnTimer();
+		m_target = now + m_period;
 	}
-
-	virtual void Iteration();
-
-	//Start the timer to begin now
-	void Restart()
-	{ m_target = g_logTimer.GetCount() + m_period; }
-
-protected:
-	virtual void OnTimer() =0;
-
-	///@brief Timestamp of the next execution
-	uint32_t m_target;
-
-	///@brief Number of timer ticks between executions
-	uint32_t m_period;
-};
-
-#endif
+}

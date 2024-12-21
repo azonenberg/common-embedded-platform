@@ -1,5 +1,6 @@
 add_library(common-embedded-platform-core STATIC
 	hardware-id.cpp
+	TimerTask.cpp
 	main.cpp
 	)
 

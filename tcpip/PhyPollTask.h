@@ -40,6 +40,7 @@ public:
 	{}
 
 protected:
+
 	virtual void OnTimer() override
 	{
 		//Check if we had a PHY link state change at 20 Hz
