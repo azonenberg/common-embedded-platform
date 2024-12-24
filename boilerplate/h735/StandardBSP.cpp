@@ -65,6 +65,9 @@ void BSP_InitClocks()
 	//A bit of extra latency is fine, the CPU being faster than flash is not.
 	Flash::SetConfiguration(513, RANGE_VOS0);
 
+	//Switch back to the HSI clock (in case we're already running on the PLL from the bootloader)
+	RCCHelper::SelectSystemClockFromHSI();
+
 	//By default out of reset, we're clocked by the HSI clock at 64 MHz
 	//Initialize the external clock source at 25 MHz
 	RCCHelper::EnableHighSpeedExternalClock();
