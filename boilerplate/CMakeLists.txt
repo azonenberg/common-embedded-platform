@@ -1,3 +1,5 @@
 if(CEP_BOILERPLATE_TARGET STREQUAL "H735")
 	add_subdirectory(h735)
+else()
+	message(FATAL_ERROR "Need to specify CEP_BOILERPLATE_TARGET if CEP_BUILD_BOILERPLATE is set")
 endif()
