@@ -77,7 +77,7 @@ void BSP_InitClocks()
 		40,		//12.5 * 40 = 500 MHz at the VCO
 		1,		//div P (primary output 500 MHz)
 		10,		//div Q (50 MHz kernel clock)
-		10,		//div R (50 MHz SWO Manchester bit clock, 25 Mbps data rate)
+		5,		//div R (100 MHz SWO Manchester bit clock, 50 Mbps data rate)
 		RCCHelper::CLOCK_SOURCE_HSE
 	);
 
