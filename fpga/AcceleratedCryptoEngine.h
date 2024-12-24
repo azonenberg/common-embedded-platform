@@ -35,6 +35,15 @@
 
 extern volatile APB_Curve25519 FCURVE25519;
 
+//TODO: this is a hack and should get moved somewhere librarized etc
+#ifdef QSPI_CACHE_WORKAROUND
+void StatusRegisterMaskedWait(volatile uint32_t* a, volatile uint32_t* b, uint32_t mask, uint32_t target);
+void SfrMemcpy(volatile void* dst, void* src, uint32_t len);
+#include "../../firmware/main/bsp/FPGAInterface.h"
+#include "../../firmware/main/bsp/APBFPGAInterface.h"
+extern APBFPGAInterface g_apbfpga;
+#endif
+
 /**
 	@brief Extension of STM32CryptoEngine using our FPGA curve25519 accelerator
  */
@@ -52,8 +61,12 @@ protected:
 	void BlockUntilAcceleratorDone()
 	{
 		asm("dmb st");
-		while(FCURVE25519.status != 0)
-		{}
+		#ifdef QSPI_CACHE_WORKAROUND
+			StatusRegisterMaskedWait(&FCURVE25519.status, &FCURVE25519.status2, 0x1, 0x0);
+		#else
+			while(FCURVE25519.status != 0)
+			{}
+		#endif
 	}
 
 	void PrintBlock(const char* keyname, const uint8_t* key);
