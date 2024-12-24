@@ -51,5 +51,7 @@ protected:
 	void PollPHYs();
 };
 
+void OnEthernetLinkStateChanged();
+
 #endif
 

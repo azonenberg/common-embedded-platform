@@ -47,15 +47,19 @@ void PhyPollTask::PollPHYs()
 		if( (bctl & 0x2000) == 0x2000)
 			g_basetLinkSpeed |= 1;
 		g_log("Interface mgmt0: link is up at %s\n", g_linkSpeedNamesLong[g_basetLinkSpeed]);
-		//OnEthernetLinkStateChanged();
+		OnEthernetLinkStateChanged();
 		g_ethProtocol->OnLinkUp();
 	}
 	else if(!bup && g_basetLinkUp)
 	{
 		g_log("Interface mgmt0: link is down\n");
 		g_basetLinkSpeed = 0xff;
-		//OnEthernetLinkStateChanged();
+		OnEthernetLinkStateChanged();
 		g_ethProtocol->OnLinkDown();
 	}
 	g_basetLinkUp = bup;
+}
+
+void __attribute__((weak)) OnEthernetLinkStateChanged()
+{
 }
