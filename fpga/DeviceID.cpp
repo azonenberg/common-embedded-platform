@@ -87,11 +87,11 @@ void InitFPGA()
 
 	//Verify reliable functionality by poking the scratchpad register (TODO: proper timing-control link training?)
 	g_log("FPGA loopback test...\n");
+	uint32_t errs = 0;
 	{
 		LogIndenter li2(g_log);
 		uint32_t tmp = 0xbaadc0de;
 		uint32_t count = 1000;
-		uint32_t errs = 0;
 		for(uint32_t i=0; i<count; i++)
 		//for(uint32_t i=0; true; i++)
 		{
@@ -106,6 +106,14 @@ void InitFPGA()
 			tmp ++;
 		}
 		g_log("%u iterations complete, %u errors\n", count, errs);
+	}
+
+	//give up if too many errors
+	if(errs > 2)
+	{
+		g_log(Logger::ERROR, "FPGA communication check failed\n");
+		while(1)
+		{}
 	}
 
 	//Read the FPGA IDCODE and serial number
