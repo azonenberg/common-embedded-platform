@@ -73,7 +73,6 @@ void AcceleratedCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clien
 	#ifdef QSPI_CACHE_WORKAROUND
 		g_apbfpga.BlockingWriteN(FCURVE25519.e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
 		g_apbfpga.BlockingWriteN(FCURVE25519.work, clientPublicKey, ECDH_KEY_SIZE);
-		g_apbfpga.BlockingWrite32(&FCURVE25519.cmd, CMD_CRYPTO_SCALARMULT);
 	#else
 		auto e = reinterpret_cast<uint32_t*>(m_ephemeralkeyPriv);
 		for(int i=0; i<8; i++)
@@ -82,9 +81,8 @@ void AcceleratedCryptoEngine::SharedSecret(uint8_t* sharedSecret, uint8_t* clien
 		auto work = reinterpret_cast<uint32_t*>(clientPublicKey);
 		for(int i=0; i<8; i++)
 			FCURVE25519.work[i] = work[i];
-
-		FCURVE25519.cmd = CMD_CRYPTO_SCALARMULT;
 	#endif
+	FCURVE25519.cmd = CMD_CRYPTO_SCALARMULT;
 	BlockUntilAcceleratorDone();
 
 	#ifdef QSPI_CACHE_WORKAROUND
@@ -130,7 +128,6 @@ void AcceleratedCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 	#ifdef QSPI_CACHE_WORKAROUND
 		g_apbfpga.BlockingWriteN(FCURVE25519.e, m_ephemeralkeyPriv, ECDH_KEY_SIZE);
 		g_apbfpga.BlockingWriteN(FCURVE25519.work, basepoint, ECDH_KEY_SIZE);
-		g_apbfpga.BlockingWrite32(&FCURVE25519.cmd, CMD_CRYPTO_SCALARMULT);
 	#else
 		//Make the FPGA do the rest of the work
 		auto e = reinterpret_cast<uint32_t*>(m_ephemeralkeyPriv);
@@ -141,8 +138,8 @@ void AcceleratedCryptoEngine::GenerateX25519KeyPair(uint8_t* pub)
 		for(int i=0; i<8; i++)
 			FCURVE25519.work[i] = work[i];
 
-		FCURVE25519.cmd = CMD_CRYPTO_SCALARMULT;
 	#endif
+	FCURVE25519.cmd = CMD_CRYPTO_SCALARMULT;
 	BlockUntilAcceleratorDone();
 
 	#ifdef QSPI_CACHE_WORKAROUND
