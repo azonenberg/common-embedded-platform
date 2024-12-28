@@ -71,7 +71,9 @@ extern "C" void hardware_init_hook()
 	//Enable caches, if we have them
 	#ifdef HAVE_L1
 		InvalidateInstructionCache();
+		InvalidateDataCache();
 		EnableInstructionCache();
+		//EnableDataCache();
 	#endif
 
 	//Initialize the floating point unit
