@@ -68,8 +68,14 @@ extern "C" void hardware_init_hook()
 		asm("isb");
 	#endif
 
+	//Enable caches, if we have them
+	#ifdef HAVE_L1
+		InvalidateInstructionCache();
+		EnableInstructionCache();
+	#endif
+
 	//Initialize the floating point unit
-	#if defined(STM32H735) || defined(STM32L431)
+	#ifdef HAVE_FPU
 		SCB.CPACR |= ((3UL << 20U)|(3UL << 22U));
 	#endif
 }
