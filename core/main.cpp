@@ -73,7 +73,7 @@ extern "C" void hardware_init_hook()
 		InvalidateInstructionCache();
 		InvalidateDataCache();
 		EnableInstructionCache();
-		//EnableDataCache();
+		EnableDataCache();
 	#endif
 
 	//Initialize the floating point unit
