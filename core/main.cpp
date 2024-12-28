@@ -50,14 +50,20 @@ extern "C" void hardware_init_hook();
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Application entry point
 
+extern "C" void* memcpy_base(void* dst0, const void* src0, size_t len);
+
 extern "C" void hardware_init_hook()
 {
+	//NOTE: on some platforms we put memcpy in ITCM to make it faster
+	//we cannot use memcpy to do this, for obvious reasons
+	//so we vendor newlib's memcpy instead (renamed to memcpy_base) and use it here
+
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
-	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
+	memcpy_base(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
 
 	#ifdef HAVE_ITCM
 		//Copy ITCM code from flash to SRAM
-		memcpy(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
+		memcpy_base(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
 		asm("dsb");
 		asm("isb");
 	#endif

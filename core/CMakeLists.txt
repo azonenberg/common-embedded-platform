@@ -4,6 +4,7 @@ add_library(common-embedded-platform-core STATIC
 	main.cpp
 
 	vendor/memcpy-armv7m.S
+	vendor/memcpy.cpp
 	)
 
 target_include_directories(common-embedded-platform-core

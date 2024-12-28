@@ -46,6 +46,7 @@
      __OPT_BIG_BLOCK_SIZE: Size of big block in words.  Default to 64.
      __OPT_MID_BLOCK_SIZE: Size of big block in words.  Default to 16.
  */
+
 #ifndef __OPT_BIG_BLOCK_SIZE
 #define __OPT_BIG_BLOCK_SIZE (4 * 16)
 #endif
@@ -80,9 +81,14 @@
 #define END_UNROLL .endr
 
 	.syntax unified
+#ifdef STM32H735
+	.section .tcmtext
+#else
 	.text
+#endif
 	.align	2
 	.global	memcpy
+
 	.thumb
 	.thumb_func
 	.type	memcpy, %function
