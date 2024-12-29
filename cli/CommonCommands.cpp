@@ -137,26 +137,26 @@ void PrintProcessorInfo(CLIOutputStream* stream)
 		stream->Printf("    ARM Cortex-M7 r%dp%d\n", (SCB.CPUID >> 20) & 0xf, (SCB.CPUID & 0xf));
 
 		//TODO: figure out why this isn't showing on H735, which should have cache
-		if(CPUID.CLIDR & 2)
+		if(SCB.CLIDR & 2)
 		{
 			stream->Printf("        L1 data cache present\n");
-			CPUID.CCSELR = 0;
+			SCB.CCSELR = 0;
 
-			int sets = ((CPUID.CCSIDR >> 13) & 0x7fff) + 1;
-			int ways = ((CPUID.CCSIDR >> 3) & 0x3ff) + 1;
-			int words = 1 << ((CPUID.CCSIDR & 3) + 2);
+			int sets = ((SCB.CCSIDR >> 13) & 0x7fff) + 1;
+			int ways = ((SCB.CCSIDR >> 3) & 0x3ff) + 1;
+			int words = 1 << ((SCB.CCSIDR & 3) + 2);
 			int total = (sets * ways * words * 4) / 1024;
 			stream->Printf("            %d sets, %d ways, %d words per line, %d kB total\n",
 				sets, ways, words, total);
 		}
-		if(CPUID.CLIDR & 1)
+		if(SCB.CLIDR & 1)
 		{
 			stream->Printf("        L1 instruction cache present\n");
-			CPUID.CCSELR = 1;
+			SCB.CCSELR = 1;
 
-			int sets = ((CPUID.CCSIDR >> 13) & 0x7fff) + 1;
-			int ways = ((CPUID.CCSIDR >> 3) & 0x3ff) + 1;
-			int words = 1 << ((CPUID.CCSIDR & 3) + 2);
+			int sets = ((SCB.CCSIDR >> 13) & 0x7fff) + 1;
+			int ways = ((SCB.CCSIDR >> 3) & 0x3ff) + 1;
+			int words = 1 << ((SCB.CCSIDR & 3) + 2);
 			int total = (sets * ways * words * 4) / 1024;
 			stream->Printf("            %d sets, %d ways, %d words per line, %d kB total\n",
 				sets, ways, words, total);
