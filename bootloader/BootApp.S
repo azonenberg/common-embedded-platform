@@ -4,8 +4,18 @@
 .globl DoBootApplication
 DoBootApplication:
 
+	//Barriers to make sure pending stuff has committed
+	dmb st
+	isb
+
 	//Disable interrupts so we don't have anything fire during the boot flow
 	cpsid	i
+
+	//Disable caches, if we have them
+#ifdef HAVE_L1
+	bx		DisableInstructionCache
+	bx		DisableDataCache
+#endif
 
 	//Update VTOR to point to the new vector table
 	ldr		r1, pvtor

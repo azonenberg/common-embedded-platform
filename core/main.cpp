@@ -52,16 +52,6 @@ extern "C" void hardware_init_hook();
 
 extern "C" void hardware_init_hook()
 {
-	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
-	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
-
-	#ifdef HAVE_ITCM
-		//Copy ITCM code from flash to SRAM
-		memcpy(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
-		asm("dsb");
-		asm("isb");
-	#endif
-
 	//Enable caches, if we have them
 	#ifdef HAVE_L1
 		InvalidateInstructionCache();
@@ -69,6 +59,17 @@ extern "C" void hardware_init_hook()
 		EnableInstructionCache();
 		EnableDataCache();
 	#endif
+
+	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
+	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
+
+	//Copy ITCM code from flash to SRAM (if we have it)
+	#ifdef HAVE_ITCM
+		memcpy(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
+	#endif
+
+	asm("dsb");
+	asm("isb");
 
 	//Initialize the floating point unit
 	#ifdef HAVE_FPU
