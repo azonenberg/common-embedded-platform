@@ -11,8 +11,10 @@ endif()
 
 # always leave debug info on, we can strip separately if required
 # define NDEBUG even in debug builds so newlib doesnt try to compile 10+ kB of asserts!!
-set(CMAKE_CXX_FLAGS_DEBUG "-g -Og -D_DEBUG -DNDEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG")
+add_compile_options("$<$<CONFIG:RELEASE>:-O3;-g>")
+add_compile_options("$<$<CONFIG:RELWITHDEBINFO>:-O3;-g>")
+add_compile_options("$<$<CONFIG:DEBUG>:-Og;-D_DEBUG;-DNDEBUG;-g>")
+add_compile_options("$<$<CONFIG:DEBUGNOOPT>:-O0;-D_DEBUG;-DNDEBUG;-g>")
 
 ########################################################################################################################
 # Helper for defining post-build steps
