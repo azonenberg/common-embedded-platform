@@ -2,9 +2,6 @@ add_library(common-embedded-platform-core STATIC
 	hardware-id.cpp
 	TimerTask.cpp
 	main.cpp
-
-	vendor/memcpy-armv7m.S
-	vendor/memcpy.cpp
 	)
 
 target_include_directories(common-embedded-platform-core

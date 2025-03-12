@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2024-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -50,24 +50,8 @@ extern "C" void hardware_init_hook();
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Application entry point
 
-extern "C" void* memcpy_base(void* dst0, const void* src0, size_t len);
-
 extern "C" void hardware_init_hook()
 {
-	//NOTE: on some platforms we put memcpy in ITCM to make it faster
-	//we cannot use memcpy to do this, for obvious reasons
-	//so we vendor newlib's memcpy instead (renamed to memcpy_base) and use it here
-
-	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
-	memcpy_base(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
-
-	#ifdef HAVE_ITCM
-		//Copy ITCM code from flash to SRAM
-		memcpy_base(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
-		asm("dsb");
-		asm("isb");
-	#endif
-
 	//Enable caches, if we have them
 	#ifdef HAVE_L1
 		InvalidateInstructionCache();
@@ -75,6 +59,17 @@ extern "C" void hardware_init_hook()
 		EnableInstructionCache();
 		EnableDataCache();
 	#endif
+
+	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
+	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
+
+	//Copy ITCM code from flash to SRAM (if we have it)
+	#ifdef HAVE_ITCM
+		memcpy(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
+	#endif
+
+	asm("dsb");
+	asm("isb");
 
 	//Initialize the floating point unit
 	#ifdef HAVE_FPU
