@@ -4,6 +4,10 @@ if(NOT DEFINED CEP_BUILD_SERVICES)
   set(CEP_BUILD_SERVICES 1)
 endif()
 
+if(NOT DEFINED CEP_BUILD_DRIVERS)
+  set(CEP_BUILD_DRIVERS 1)
+endif()
+
 if(NOT DEFINED CEP_BUILD_SUPER)
   set(CEP_BUILD_SUPER 1)
 endif()
@@ -45,6 +49,10 @@ endif()
 
 if(CEP_BUILD_CLI)
 	add_subdirectory(cli)
+endif()
+
+if(CEP_BUILD_DRIVERS)
+	add_subdirectory(drivers)
 endif()
 
 if(CEP_BUILD_TCPIP)
