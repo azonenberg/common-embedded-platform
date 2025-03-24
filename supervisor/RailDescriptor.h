@@ -169,6 +169,52 @@ protected:
 	GPIOPin& m_pgood;
 };
 
+/**
+	@brief A power rail that has an active-high enable line and an active-high PGOOD line
+ */
+class RailDescriptorWithActiveLowEnableAndPGood : public RailDescriptorWithEnableAndPGood
+{
+public:
+	/**
+		@brief Creates a new rail descriptor
+
+		@param name		Human readable rail name for logging
+		@param enable	Enable pin (set high to turn on power)
+		@param pgood	Enable pin (set high to turn on power)
+		@param timer	Timer to use for sequencing delays
+		@param timeout	Timeout, in timer ticks, at which point the rail is expected to have come up
+	 */
+	RailDescriptorWithActiveLowEnableAndPGood(const char* name, GPIOPin& enable, GPIOPin& pgood, Timer& timer, uint16_t timeout)
+		: RailDescriptorWithEnableAndPGood(name, enable, pgood, timer, timeout)
+	{
+		m_enable = 1;
+	}
+
+	virtual bool TurnOn() override
+	{
+		g_log("Turning on %s\n", m_name);
+
+		m_enable = 0;
+
+		for(uint32_t i=0; i<m_delay; i++)
+		{
+			if(m_pgood)
+				return true;
+			m_timer.Sleep(1);
+		}
+
+		if(!m_pgood)
+		{
+			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
+			return false;
+		}
+		return true;
+	}
+
+	virtual void TurnOff() override
+	{ m_enable = 1; };
+};
+
 #if defined(HAVE_ADC) && defined(HAVE_FPU)
 
 #include <peripheral/ADC.h>
