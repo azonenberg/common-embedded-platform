@@ -41,7 +41,10 @@ const char* g_linkSpeedNamesLong[] =
 	"10 Mbps",
 	"100 Mbps",
 	"1000 Mbps",
-	"10 Gbps"
+	"10 Gbps",
+	"25 Gbps",
+	"40 Gbps",
+	"100 Gbps"
 };
 
 ///@brief Our MAC address
@@ -60,7 +63,7 @@ EthernetProtocol* g_ethProtocol = nullptr;
 bool g_basetLinkUp = false;
 
 //Ethernet link speed
-uint8_t g_basetLinkSpeed = 0;
+linkspeed_t g_basetLinkSpeed = LINK_SPEED_10M;
 
 ///@brief MDIO device for the PHY
 MDIODevice* g_phyMdio = nullptr;

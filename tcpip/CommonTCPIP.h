@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -43,9 +43,20 @@ extern IPv6Config g_ipv6Config;
 extern MDIODevice* g_phyMdio;
 extern const char* g_linkSpeedNamesLong[];
 
+enum linkspeed_t
+{
+	LINK_SPEED_10M,
+	LINK_SPEED_100M,
+	LINK_SPEED_1000M,
+	LINK_SPEED_10G,
+	LINK_SPEED_25G,
+	LINK_SPEED_40G,
+	LINK_SPEED_100G
+};
+
 extern EthernetProtocol* g_ethProtocol;
 extern bool g_basetLinkUp;
-extern uint8_t g_basetLinkSpeed;
+extern linkspeed_t g_basetLinkSpeed;
 
 //IP address configuration
 extern const IPv4Address g_defaultIP;
