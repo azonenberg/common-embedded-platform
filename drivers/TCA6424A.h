@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -27,58 +27,38 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef platform_h
-#define platform_h
+#ifndef TCA6424A_h
+#define TCA6424A_h
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+/**
+	@brief Wrapper for TCA6242A I/O expander
+ */
+class TCA6424A
+{
+public:
+	TCA6424A(I2C* i2c, uint8_t addr);
 
-#include <etl/vector.h>
+	void SetDirection(uint8_t chan, bool input);
+	void SetOutputValue(uint8_t chan, bool value);
 
-#include <peripheral/RCC.h>
-#include <peripheral/Timer.h>
+	void BatchUpdateValue(uint8_t block, uint8_t value)
+	{ m_outvals[block] = value; };
 
-#include <embedded-utils/Logger.h>
-#include <microkvs/kvs/KVS.h>
+	void BatchCommitValue();
 
-#include "../../embedded-utils/LogSink.h"
+protected:
 
-//Common globals every system expects to have available
-extern Logger g_log;
-extern Timer g_logTimer;
-extern KVS* g_kvs;
+	///@brief The I2C channel to sue
+	I2C* m_i2c;
 
-//Global helper functions
-void __attribute__((noreturn)) Reset();
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void FormatBuildID(const uint8_t* buildID, char* strOut);
+	///@brief Device I2C bus address
+	uint8_t m_address;
 
-//Returns true in bootloader, false in application firmware
-bool IsBootloader();
+	///@brief Port directions
+	uint8_t m_dirmask[3];
 
-//Task types
-#include "Task.h"
-#include "TimerTask.h"
-
-#include "bsp.h"
-
-//All tasks
-extern etl::vector<Task*, MAX_TASKS>  g_tasks;
-
-//Timer tasks (strict subset of total tasks)
-extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
-
-//Helpers for FPGA interfacing
-void InitFPGA();
-
-extern uint8_t g_fpgaSerial[8];
-extern uint32_t g_usercode;
-
-#ifndef MAX_LOG_SINKS
-#define MAX_LOG_SINKS 2
-#endif
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
+	///@brief Output port values
+	uint8_t m_outvals[3];
+};
 
 #endif

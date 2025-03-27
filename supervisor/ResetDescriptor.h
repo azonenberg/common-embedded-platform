@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -82,6 +82,52 @@ public:
 };
 
 /**
+	@brief An active-low reset with a time delay
+ */
+class ActiveLowResetDescriptorWithDelay : public ActiveLowResetDescriptor
+{
+public:
+	ActiveLowResetDescriptorWithDelay(GPIOPin& pin, const char* name, Timer& timer, uint16_t delay)
+	: ActiveLowResetDescriptor(pin, name)
+	, m_timer(timer)
+	, m_delay(delay)
+	, m_done(false)
+	{
+
+	}
+
+	virtual void Deassert() override
+	{
+		g_log("Releasing %s reset\n", m_name);
+		m_pin = 1;
+		m_done = false;
+		m_tstart = m_timer.GetCount();
+	}
+
+	virtual bool IsReady() override
+	{
+		//Immediately report done on wrap
+		//TODO: cleaner handling?
+		auto tnow = m_timer.GetCount();
+		if(tnow < m_tstart)
+			m_done = true;
+
+		//Elapsed?
+		if(tnow > (m_tstart + m_delay) )
+			m_done = true;
+
+		return m_done;
+	}
+
+protected:
+	Timer& m_timer;
+	uint16_t m_delay;
+
+	bool m_done;
+	uint32_t m_tstart;
+};
+
+/**
 	@brief An active-low reset plus an active-high signal that's asserted when the device is operational
  */
 class ActiveLowResetDescriptorWithActiveHighDone : public ActiveLowResetDescriptor
@@ -117,5 +163,74 @@ protected:
 	GPIOPin& m_done;
 };
 
+/**
+	@brief An active-high reset
+ */
+class ActiveHighResetDescriptor : public ResetDescriptor
+{
+public:
+	ActiveHighResetDescriptor(GPIOPin& pin, const char* name)
+	: ResetDescriptor(pin, name)
+	{ m_pin = 1; }	//don't use Assert() since it logs
+					//and we might not have the logger set up yet in global constructors
+
+	virtual void Assert() override
+	{
+		g_log("Asserting %s reset\n", m_name);
+		m_pin = 1;
+	}
+
+	virtual void Deassert() override
+	{
+		g_log("Releasing %s reset\n", m_name);
+		m_pin = 0;
+	}
+};
+
+/**
+	@brief An active-low reset with a time delay
+ */
+class ActiveHighResetDescriptorWithDelay : public ActiveHighResetDescriptor
+{
+public:
+	ActiveHighResetDescriptorWithDelay(GPIOPin& pin, const char* name, Timer& timer, uint16_t delay)
+	: ActiveHighResetDescriptor(pin, name)
+	, m_timer(timer)
+	, m_delay(delay)
+	, m_done(false)
+	{
+
+	}
+
+	virtual void Deassert() override
+	{
+		g_log("Releasing %s reset\n", m_name);
+		m_pin = 0;
+		m_done = false;
+		m_tstart = m_timer.GetCount();
+	}
+
+	virtual bool IsReady() override
+	{
+		//Immediately report done on wrap
+		//TODO: cleaner handling?
+		auto tnow = m_timer.GetCount();
+		if(tnow < m_tstart)
+			m_done = true;
+
+		//Elapsed?
+		if(tnow > (m_tstart + m_delay) )
+			m_done = true;
+
+		return m_done;
+	}
+
+protected:
+	Timer& m_timer;
+	uint16_t m_delay;
+
+	bool m_done;
+	uint32_t m_tstart;
+};
 
 #endif

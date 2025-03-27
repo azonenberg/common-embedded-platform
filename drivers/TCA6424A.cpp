@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -27,58 +27,86 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef platform_h
-#define platform_h
+#include <core/platform.h>
+#include <peripheral/I2C.h>
+#include "TCA6424A.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <stm32.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Construction / destruction
 
-#include <etl/vector.h>
+TCA6424A::TCA6424A(I2C* i2c, uint8_t addr)
+	: m_i2c(i2c)
+	, m_address(addr)
+{
+	for(int i=0; i<3; i++)
+	{
+		//All ports default to input at power up
+		m_dirmask[i] = 0xff;
 
-#include <peripheral/RCC.h>
-#include <peripheral/Timer.h>
+		//All ports default to outputting 1 at power up
+		m_outvals[i] = 0xff;
+	}
+}
 
-#include <embedded-utils/Logger.h>
-#include <microkvs/kvs/KVS.h>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// I/O interface logic
 
-#include "../../embedded-utils/LogSink.h"
+/**
+	@brief Configure the direction of an output
+ */
+void TCA6424A::SetDirection(uint8_t chan, bool input)
+{
+	//Byte group within the expander
+	uint8_t group = (chan / 8);
 
-//Common globals every system expects to have available
-extern Logger g_log;
-extern Timer g_logTimer;
-extern KVS* g_kvs;
+	//Bit lane within the byte
+	uint8_t lane = chan % 8;
 
-//Global helper functions
-void __attribute__((noreturn)) Reset();
-void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
-void FormatBuildID(const uint8_t* buildID, char* strOut);
+	//Update internal direction mask
+	if(input)
+		m_dirmask[group] |= (1 << lane);
+	else
+		m_dirmask[group] &= ~(1 << lane);
 
-//Returns true in bootloader, false in application firmware
-bool IsBootloader();
+	//Send to the device
+	uint8_t regid = 0x0c + group;
+	uint8_t data[2] = {regid, m_dirmask[group]};
+	m_i2c->BlockingWrite(m_address, data, 2);
+}
 
-//Task types
-#include "Task.h"
-#include "TimerTask.h"
+/**
+	@brief Configure the value of an output
+ */
+void TCA6424A::SetOutputValue(uint8_t chan, bool value)
+{
+	//Byte group within the expander
+	uint8_t group = (chan / 8);
 
-#include "bsp.h"
+	//Bit lane within the byte
+	uint8_t lane = chan % 8;
 
-//All tasks
-extern etl::vector<Task*, MAX_TASKS>  g_tasks;
+	//Update internal direction mask
+	if(value)
+		m_outvals[group] |= (1 << lane);
+	else
+		m_outvals[group] &= ~(1 << lane);
 
-//Timer tasks (strict subset of total tasks)
-extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+	//Send to the device
+	uint8_t regid = 0x04 + group;
+	uint8_t data[2] = {regid, m_outvals[group]};
+	m_i2c->BlockingWrite(m_address, data, 2);
+}
 
-//Helpers for FPGA interfacing
-void InitFPGA();
-
-extern uint8_t g_fpgaSerial[8];
-extern uint32_t g_usercode;
-
-#ifndef MAX_LOG_SINKS
-#define MAX_LOG_SINKS 2
-#endif
-extern LogSink<MAX_LOG_SINKS>* g_logSink;
-
-#endif
+/**
+	@brief Push updates to the expander
+ */
+void TCA6424A::BatchCommitValue()
+{
+	//Send to the device
+	for(int block=0; block<3; block++)
+	{
+		uint8_t regid = 0x04 + block;
+		uint8_t data[2] = {regid, m_outvals[block]};
+		m_i2c->BlockingWrite(m_address, data, 2);
+	}
+}

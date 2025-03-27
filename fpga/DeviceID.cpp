@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2024-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -28,6 +28,12 @@
 ***********************************************************************************************************************/
 
 #include "../core/platform.h"
+#include <APB_DeviceInfo_7series.h>
+#include <APB_DeviceInfo_UltraScale.h>
+
+//TODO: make separate header for prototypes
+void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo);
+void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo);
 
 const char* GetNameOfFPGA(uint32_t idcode);
 
@@ -69,7 +75,7 @@ const char* GetNameOfFPGA(uint32_t idcode)
 
 		//Kintex-UltraScale+
 		case 0x4a63093:	return "XCKU3P";
-		//TODO: xcku5p
+		case 0x4a62093:	return "XCKU5P";
 
 		default:		return "unknown device";
 	}
@@ -116,12 +122,17 @@ void InitFPGA()
 		{}
 	}
 
+	PrintFPGAInfo(&FDEVINFO);
+}
+
+template<class T> void PrintFPGAInfoInt(T* devinfo)
+{
 	//Read the FPGA IDCODE and serial number
 	while(FDEVINFO.status != 3)
 	{}
 
-	uint32_t idcode = FDEVINFO.idcode;
-	memcpy(g_fpgaSerial, (const void*)FDEVINFO.serial, 8);
+	uint32_t idcode = devinfo->idcode;
+	memcpy(g_fpgaSerial, (const void*)devinfo->serial, 8);
 
 	//Print status
 	g_log("IDCODE: %08x (%s rev %d)\n", idcode, GetNameOfFPGA(idcode), idcode >> 28);
@@ -130,7 +141,7 @@ void InitFPGA()
 		g_fpgaSerial[3], g_fpgaSerial[2], g_fpgaSerial[1], g_fpgaSerial[0]);
 
 	//Read USERCODE
-	g_usercode = FDEVINFO.usercode;
+	g_usercode = devinfo->usercode;
 	g_log("Usercode: %08x\n", g_usercode);
 	{
 		LogIndenter li2(g_log);
@@ -151,4 +162,14 @@ void InitFPGA()
 		g_log("Bitstream timestamp: %04d-%02d-%02d %02d:%02d:%02d\n",
 			yr, mon, day, hr, min, sec);
 	}
+}
+
+void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo)
+{
+	PrintFPGAInfoInt(devinfo);
+}
+
+void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo)
+{
+	PrintFPGAInfoInt(devinfo);
 }
