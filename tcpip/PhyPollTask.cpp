@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -41,11 +41,13 @@ void PhyPollTask::PollPHYs()
 	bool bup = (bstat & 4) == 4;
 	if(bup && !g_basetLinkUp)
 	{
-		g_basetLinkSpeed = 0;
-		if( (bctl & 0x40) == 0x40)
-			g_basetLinkSpeed |= 2;
+		uint8_t speed = 0;
+		 if( (bctl & 0x40) == 0x40)
+			speed |= 2;
 		if( (bctl & 0x2000) == 0x2000)
-			g_basetLinkSpeed |= 1;
+			speed |= 1;
+		g_basetLinkSpeed = static_cast<linkspeed_t>(speed);
+
 		g_log("Interface mgmt0: link is up at %s\n", g_linkSpeedNamesLong[g_basetLinkSpeed]);
 		OnEthernetLinkStateChanged();
 		g_ethProtocol->OnLinkUp();
@@ -53,7 +55,7 @@ void PhyPollTask::PollPHYs()
 	else if(!bup && g_basetLinkUp)
 	{
 		g_log("Interface mgmt0: link is down\n");
-		g_basetLinkSpeed = 0xff;
+		g_basetLinkSpeed = LINK_SPEED_10M;
 		OnEthernetLinkStateChanged();
 		g_ethProtocol->OnLinkDown();
 	}

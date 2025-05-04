@@ -34,6 +34,8 @@
 //TODO: make separate header for prototypes
 void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo);
 void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo);
+void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo, CharacterDevice* stream);
+void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo, CharacterDevice* stream);
 
 const char* GetNameOfFPGA(uint32_t idcode);
 
@@ -128,7 +130,7 @@ void InitFPGA()
 template<class T> void PrintFPGAInfoInt(T* devinfo)
 {
 	//Read the FPGA IDCODE and serial number
-	while(FDEVINFO.status != 3)
+	while(devinfo->status != 3)
 	{}
 
 	uint32_t idcode = devinfo->idcode;
@@ -172,4 +174,53 @@ void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo)
 void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo)
 {
 	PrintFPGAInfoInt(devinfo);
+}
+
+template<class T> void PrintFPGAInfoInt(T* devinfo, CharacterDevice* stream)
+{
+	//Read the FPGA IDCODE and serial number
+	while(devinfo->status != 3)
+	{}
+
+	uint32_t idcode = devinfo->idcode;
+	memcpy(g_fpgaSerial, (const void*)devinfo->serial, 8);
+
+	//Print status
+	stream->Printf("    IDCODE: %08x (%s rev %d)\n", idcode, GetNameOfFPGA(idcode), idcode >> 28);
+	stream->Printf("    Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+		g_fpgaSerial[7], g_fpgaSerial[6], g_fpgaSerial[5], g_fpgaSerial[4],
+		g_fpgaSerial[3], g_fpgaSerial[2], g_fpgaSerial[1], g_fpgaSerial[0]);
+
+	//Read USERCODE
+	g_usercode = devinfo->usercode;
+	stream->Printf("    Usercode: %08x\n", g_usercode);
+	{
+		LogIndenter li2(g_log);
+
+		//Format per XAPP1232:
+		//31:27 day
+		//26:23 month
+		//22:17 year
+		//16:12 hr
+		//11:6 min
+		//5:0 sec
+		int day = g_usercode >> 27;
+		int mon = (g_usercode >> 23) & 0xf;
+		int yr = 2000 + ((g_usercode >> 17) & 0x3f);
+		int hr = (g_usercode >> 12) & 0x1f;
+		int min = (g_usercode >> 6) & 0x3f;
+		int sec = g_usercode & 0x3f;
+		stream->Printf("    Bitstream timestamp: %04d-%02d-%02d %02d:%02d:%02d\n",
+			yr, mon, day, hr, min, sec);
+	}
+}
+
+void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo, CharacterDevice* stream)
+{
+	PrintFPGAInfoInt(devinfo, stream);
+}
+
+void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo, CharacterDevice* stream)
+{
+	PrintFPGAInfoInt(devinfo, stream);
 }
