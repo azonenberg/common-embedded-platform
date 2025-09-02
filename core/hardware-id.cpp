@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2024-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -31,10 +31,6 @@
 
 const char* GetStepping(uint16_t rev);
 const char* GetPartName(uint16_t device);
-
-#ifdef STM32H735
-#define HAVE_PKG
-#endif
 
 #ifdef HAVE_PKG
 const char* GetPackage(uint8_t pkg);
@@ -66,6 +62,8 @@ void __attribute__((weak)) BSP_DetectHardware()
 		g_log("8 kB total SRAM, 1 kB EEPROM, 20 byte backup SRAM\n");
 	#elif defined(STM32H735)
 		g_log("564 kB total SRAM, 128 kB DTCM, up to 256 kB ITCM, 4 kB backup SRAM\n");
+	#elif defined(STM32H750)
+		g_log("1 MB total SRAM, 128 kB DTCM, 64 kB ITCM, 4 kB backup SRAM\n");
 	#endif
 
 	#ifdef STM32L431
@@ -129,21 +127,32 @@ void __attribute__((weak)) BSP_DetectHardware()
 const char* GetPackage(uint8_t pkg)
 {
 	//For now, this is STM32H735 specific
-	switch(pkg)
-	{
-		case 0:		return "VQFPN68 (industrial)";
-		case 1:		return "LQFP100/TFBGA100 (legacy)";
-		case 2:		return "LQFP100 (industrial)";
-		case 3:		return "TFBGA100 (industrial)";
-		case 4:		return "WLCSP115 (industrial)";
-		case 5:		return "LQFP144 (legacy)";
-		case 6:		return "UFBGA144 (legacy)";
-		case 7:		return "LQFP144 (industrial)";
-		case 8:		return "UFBGA169 (industrial)";
-		case 9:		return "UFBGA176+25 (industrial)";
-		case 10:	return "LQFP176 (industrial)";
-		default:	return "unknown package";
-	}
+	#ifdef STM32H735
+		switch(pkg)
+		{
+			case 0:		return "VQFPN68 (industrial)";
+			case 1:		return "LQFP100/TFBGA100 (legacy)";
+			case 2:		return "LQFP100 (industrial)";
+			case 3:		return "TFBGA100 (industrial)";
+			case 4:		return "WLCSP115 (industrial)";
+			case 5:		return "LQFP144 (legacy)";
+			case 6:		return "UFBGA144 (legacy)";
+			case 7:		return "LQFP144 (industrial)";
+			case 8:		return "UFBGA169 (industrial)";
+			case 9:		return "UFBGA176+25 (industrial)";
+			case 10:	return "LQFP176 (industrial)";
+			default:	return "unknown package";
+		}
+	#elif defined(STM32H750)
+		switch(pkg)
+		{
+			case 0:		return "LQFP100";
+			case 2:		return "TQFP144";
+			case 5:		return "TQFP176/UFBGA176";
+			case 8:		return "LQFP208/TFBGA240";
+			default:	return "unknown package";
+		}
+	#endif
 }
 #endif
 
@@ -166,11 +175,20 @@ const char* GetStepping(uint16_t rev)
 			case 0x2018:	return "X";
 			default:		return "(unknown)";
 		}
-	#elif defined(STM32H7)	//H735
+	#elif defined(STM32H735)	//H735
 		switch(rev)
 		{
 			case 0x1000:	return "A";
 			case 0x1001:	return "Z";
+			default:		return "(unknown)";
+		}
+	#elif defined(STM32H750)	//H750
+		switch(rev)
+		{
+			case 0x1001:	return "Z";
+			case 0x1003:	return "Y";
+			case 0x2001:	return "X";
+			case 0x2003:	return "V";
 			default:		return "(unknown)";
 		}
 	#endif
@@ -195,7 +213,16 @@ const char* GetPartName([[maybe_unused]] uint16_t device)
 			case 0x425:	return "L031/041";
 			default:	return "(unknown)";
 		}
-	#elif defined(STM32H7)
+	#elif defined(STM32H750)
+		//0x450 is H742/743/753/750
+		switch(device)
+		{
+			case 0x450:	return "H742/743/750/753";
+			default:	return "(unknown)";
+		}
+
+	//735 in particular has text ID in L_ID
+	#elif defined(STM32H735)
 		//0x483 is H735, but L_ID has text
 		static const char id[5] =
 		{

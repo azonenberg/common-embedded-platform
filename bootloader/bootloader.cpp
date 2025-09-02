@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2024-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -41,6 +41,14 @@ static const uint8_t g_gnuBuildIdHeader[16] =
 
 const char* g_imageVersionKey = "firmware.imageVersion";
 const char* g_imageCRCKey = "firmware.crc";
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// BBRAM for config
+
+#ifdef HAVE_RTC
+	///@brief The battery-backed RAM used to store state across power cycles
+	volatile BootloaderBBRAM* g_bbram = reinterpret_cast<volatile BootloaderBBRAM*>(&_RTC.BKP[0]);
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Initialization
@@ -219,33 +227,41 @@ void EraseFlash(uint32_t* appVector)
 	LogIndenter li(g_log);
 
 	uint8_t* appStart				= reinterpret_cast<uint8_t*>(appVector);
-
-	#if defined(STM32L431)
-		const uint32_t eraseBlockSize	= 2 * 1024;
-	#elif defined(STM32L031)
-		const uint32_t eraseBlockSize	= 128;
-	#elif defined(STM32H735)
-		const uint32_t eraseBlockSize	= 128 * 1024;
-	#else
-		#error Dont know erase block size for this chip!
-	#endif
-
-	const uint32_t nblocks 			= g_appImageSize / eraseBlockSize;
-
 	auto start = g_logTimer.GetCount();
-	for(uint32_t i=0; i<nblocks; i++)
-	{
-		if( (i % 10) == 0)
+
+	#ifdef STM32H750
+		//H750 relies on external flash, TODO actually do stuff there
+		g_log("UNIMPLEMENTED\n");
+		while(1)
+		{}
+	#else
+
+		#if defined(STM32L431)
+			const uint32_t eraseBlockSize	= 2 * 1024;
+		#elif defined(STM32L031)
+			const uint32_t eraseBlockSize	= 128;
+		#elif defined(STM32H735)
+			const uint32_t eraseBlockSize	= 128 * 1024;
+		#else
+			#error Dont know erase block size for this chip!
+		#endif
+
+		const uint32_t nblocks 			= g_appImageSize / eraseBlockSize;
+
+		for(uint32_t i=0; i<nblocks; i++)
 		{
-			auto dt = g_logTimer.GetCount() - start;
-			g_log("Block %u / %u (elapsed %d.%d ms)\n", i, nblocks, dt / 10, dt % 10);
+			if( (i % 10) == 0)
+			{
+				auto dt = g_logTimer.GetCount() - start;
+				g_log("Block %u / %u (elapsed %d.%d ms)\n", i, nblocks, dt / 10, dt % 10);
+			}
+
+			Flash::BlockErase(appStart + i*eraseBlockSize);
+
+			//discard any commands that showed up while we were busy
+			Bootloader_ClearRxBuffer();
 		}
-
-		Flash::BlockErase(appStart + i*eraseBlockSize);
-
-		//discard any commands that showed up while we were busy
-		Bootloader_ClearRxBuffer();
-	}
+	#endif
 
 	auto dt = g_logTimer.GetCount() - start;
 	g_log("Done (in %d.%d ms)\n", dt / 10, dt % 10);

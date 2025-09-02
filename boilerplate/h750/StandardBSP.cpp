@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -28,96 +28,111 @@
 ***********************************************************************************************************************/
 
 /**
-	@file
-	@brief Contains BSP helpers that are common to most uses of the supervisor
-
-	Set clocks to max using internal oscillator, initialize the log, etc.
-
-	But nothing actually board specific that might vary with pinout
+	@brief Standard BSP overrides used by most if not all STM32H750 projects
  */
 
-#include "supervisor-common.h"
+#include <core/platform.h>
+#include <microkvs/driver/STM32StorageBank.h>
+#include <peripheral/Flash.h>
 #include <peripheral/Power.h>
+#include <peripheral/RTC.h>
+#include "StandardBSP.h"
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Common global hardware config used by both bootloader and application
-
-#ifdef STM32L431
-	//APB1 is 80 MHz
-	//Divide down to get 10 kHz ticks (note TIM2 is double rate)
-	Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 16000);
-#elif defined(STM32L031)
-	//APB1 is 32 MHz
-	//Divide down to get 10 kHz ticks (note TIM2 is double rate)
-	Timer g_logTimer(&TIMER2, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 6400);
-#else
-	#error unknown target device
-#endif
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// BSP init
+//FIXME
+//APB1 is 62.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
+//Divide down to get 10 kHz ticks
+Timer g_logTimer(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12500);
 
 void BSP_InitPower()
 {
-	#ifdef STM32L431
-		Power::ConfigureLDO(RANGE_VOS1);
-	#elif defined(STM32L031)
-		RCCHelper::Enable(&PWR);
-		Power::ConfigureLDO(RANGE_VOS1);
-	#else
-		#error unknown target device
-	#endif
+	//Initialize power (must be the very first thing done after reset)
+	//Power::ConfigureSMPSToLDOCascade(Power::VOLTAGE_1V8, RANGE_VOS0);
 }
 
 void BSP_InitClocks()
 {
-	#ifdef STM32L431
+	/*
+	//With CPU_FREQ_BOOST not set, max frequency is 520 MHz
 
-		//Configure the flash with wait states and prefetching before making any changes to the clock setup.
-		//A bit of extra latency is fine, the CPU being faster than flash is not.
-		Flash::SetConfiguration(80, RANGE_VOS1);
+	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
+	//A bit of extra latency is fine, the CPU being faster than flash is not.
+	Flash::SetConfiguration(513, RANGE_VOS0);
 
-		RCCHelper::InitializePLLFromHSI16(
-			2,	//Pre-divide by 2 (PFD frequency 8 MHz)
-			20,	//VCO at 8*20 = 160 MHz
-			4,	//Q divider is 40 MHz (nominal 48 but we're not using USB so this is fine)
-			2,	//R divider is 80 MHz (fmax for CPU)
-			1,	//no further division from SYSCLK to AHB (80 MHz)
-			1,	//APB1 at 80 MHz
-			1);	//APB2 at 80 MHz
+	//Switch back to the HSI clock (in case we're already running on the PLL from the bootloader)
+	RCCHelper::SelectSystemClockFromHSI();
 
-		//Select ADC clock as sysclk
-		RCC.CCIPR |= 0x3000'0000;
+	//By default out of reset, we're clocked by the HSI clock at 64 MHz
+	//Initialize the external clock source at 25 MHz
+	RCCHelper::EnableHighSpeedExternalClock();
 
-	#elif defined(STM32L031)
+	//Set up PLL1 to run off the external oscillator
+	RCCHelper::InitializePLL(
+		1,		//PLL1
+		25,		//input is 25 MHz from the HSE
+		2,		//25/2 = 12.5 MHz at the PFD
+		40,		//12.5 * 40 = 500 MHz at the VCO
+		1,		//div P (primary output 500 MHz)
+		10,		//div Q (50 MHz kernel clock)
+		5,		//div R (100 MHz SWO Manchester bit clock, 50 Mbps data rate)
+		RCCHelper::CLOCK_SOURCE_HSE
+	);
 
-		//Configure the flash with wait states and prefetching before making any changes to the clock setup.
-		//A bit of extra latency is fine, the CPU being faster than flash is not.
-		Flash::SetConfiguration(32, RANGE_VOS1);
+	//Set up main system clock tree
+	RCCHelper::InitializeSystemClocks(
+		1,		//sysclk = 500 MHz
+		2,		//AHB = 250 MHz
+		4,		//APB1 = 62.5 MHz
+		4,		//APB2 = 62.5 MHz
+		4,		//APB3 = 62.5 MHz
+		4		//APB4 = 62.5 MHz
+	);
 
-		//Set operating frequency
-		RCCHelper::InitializePLLFromHSI16(
-			4,	//VCO at 16*4 = 64 MHz
-			2,	//CPU frequency is 64/2 = 32 MHz (max 32)
-			1,	//AHB at 32 MHz (max 32)
-			1,	//APB2 at 32 MHz (max 32)
-			1);	//APB1 at 32 MHz (max 32)
+	//RNG clock should be >= HCLK/32
+	//AHB2 HCLK is 250 MHz so min 7.8125 MHz
+	//Select PLL1 Q clock (50 MHz)
+	RCC.D2CCIP2R = (RCC.D2CCIP2R & ~0x300) | (0x100);
 
-	#else
-		#error unknown target device
-	#endif
+	//Select PLL1 as system clock source
+	RCCHelper::SelectSystemClockFromPLL1();
+	*/
 }
 
 void BSP_InitLog()
 {
-	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
-	g_logTimer.Sleep(100);
+	/*
+	static LogSink<MAX_LOG_SINKS> sink(&g_cliUART);
+	g_logSink = &sink;
 
-	//Clear screen and move cursor to X0Y0 (but only in bootloader)
-	#ifndef NO_CLEAR_SCREEN
-	g_uart.Printf("\x1b[2J\x1b[0;0H");
-	#endif
+	g_log.Initialize(g_logSink, &g_logTimer);
+	g_log("Firmware compiled at %s on %s\n", __TIME__, __DATE__);
+	*/
+}
 
-	//Start the logger
-	g_log.Initialize(&g_uart, &g_logTimer);
+void DoInitKVS()
+{
+	/*
+		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
+
+		Each log entry is 64 bytes, and we want to allocate ~50% of storage to the log since our objects are pretty
+		small (SSH keys, IP addresses, etc). A 1024-entry log is a nice round number, and comes out to 64 kB or 50%,
+		leaving the remaining 64 kB or 50% for data.
+	 */
+	/*
+	static STM32StorageBank left(reinterpret_cast<uint8_t*>(0x080c0000), 0x20000);
+	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x080e0000), 0x20000);
+	InitKVS(&left, &right, 1024);
+	*/
+}
+
+void InitRTCFromHSE()
+{
+	/*
+	g_log("Initializing RTC...\n");
+	LogIndenter li(g_log);
+	g_log("Using external clock divided by 50 (500 kHz)\n");
+
+	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
+	RCCHelper::Enable(&_RTC);
+	RTC::SetClockFromHSE(50);
+	*/
 }

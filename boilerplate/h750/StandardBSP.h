@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -27,97 +27,16 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-/**
-	@file
-	@brief Contains BSP helpers that are common to most uses of the supervisor
+#ifndef StandardBSP_h
+#define StandardBSP_h
 
-	Set clocks to max using internal oscillator, initialize the log, etc.
+#include <peripheral/UART.h>
 
-	But nothing actually board specific that might vary with pinout
- */
+void DoInitKVS();
+void InitRTCFromHSE();
 
-#include "supervisor-common.h"
-#include <peripheral/Power.h>
+extern UART<32, 256> g_cliUART;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Common global hardware config used by both bootloader and application
+void InitDTS();
 
-#ifdef STM32L431
-	//APB1 is 80 MHz
-	//Divide down to get 10 kHz ticks (note TIM2 is double rate)
-	Timer g_logTimer(&TIM2, Timer::FEATURE_ADVANCED, 16000);
-#elif defined(STM32L031)
-	//APB1 is 32 MHz
-	//Divide down to get 10 kHz ticks (note TIM2 is double rate)
-	Timer g_logTimer(&TIMER2, Timer::FEATURE_GENERAL_PURPOSE_16BIT, 6400);
-#else
-	#error unknown target device
 #endif
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// BSP init
-
-void BSP_InitPower()
-{
-	#ifdef STM32L431
-		Power::ConfigureLDO(RANGE_VOS1);
-	#elif defined(STM32L031)
-		RCCHelper::Enable(&PWR);
-		Power::ConfigureLDO(RANGE_VOS1);
-	#else
-		#error unknown target device
-	#endif
-}
-
-void BSP_InitClocks()
-{
-	#ifdef STM32L431
-
-		//Configure the flash with wait states and prefetching before making any changes to the clock setup.
-		//A bit of extra latency is fine, the CPU being faster than flash is not.
-		Flash::SetConfiguration(80, RANGE_VOS1);
-
-		RCCHelper::InitializePLLFromHSI16(
-			2,	//Pre-divide by 2 (PFD frequency 8 MHz)
-			20,	//VCO at 8*20 = 160 MHz
-			4,	//Q divider is 40 MHz (nominal 48 but we're not using USB so this is fine)
-			2,	//R divider is 80 MHz (fmax for CPU)
-			1,	//no further division from SYSCLK to AHB (80 MHz)
-			1,	//APB1 at 80 MHz
-			1);	//APB2 at 80 MHz
-
-		//Select ADC clock as sysclk
-		RCC.CCIPR |= 0x3000'0000;
-
-	#elif defined(STM32L031)
-
-		//Configure the flash with wait states and prefetching before making any changes to the clock setup.
-		//A bit of extra latency is fine, the CPU being faster than flash is not.
-		Flash::SetConfiguration(32, RANGE_VOS1);
-
-		//Set operating frequency
-		RCCHelper::InitializePLLFromHSI16(
-			4,	//VCO at 16*4 = 64 MHz
-			2,	//CPU frequency is 64/2 = 32 MHz (max 32)
-			1,	//AHB at 32 MHz (max 32)
-			1,	//APB2 at 32 MHz (max 32)
-			1);	//APB1 at 32 MHz (max 32)
-
-	#else
-		#error unknown target device
-	#endif
-}
-
-void BSP_InitLog()
-{
-	//Wait 10ms to avoid resets during shutdown from destroying diagnostic output
-	g_logTimer.Sleep(100);
-
-	//Clear screen and move cursor to X0Y0 (but only in bootloader)
-	#ifndef NO_CLEAR_SCREEN
-	g_uart.Printf("\x1b[2J\x1b[0;0H");
-	#endif
-
-	//Start the logger
-	g_log.Initialize(&g_uart, &g_logTimer);
-}
