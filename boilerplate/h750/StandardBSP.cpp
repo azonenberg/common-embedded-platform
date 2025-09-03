@@ -38,25 +38,22 @@
 #include <peripheral/RTC.h>
 #include "StandardBSP.h"
 
-//FIXME
-//APB1 is 62.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
+//APB1 is 112.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
 //Divide down to get 10 kHz ticks
-Timer g_logTimer(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 12500);
+Timer g_logTimer(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 22500);
 
 void BSP_InitPower()
 {
 	//Initialize power (must be the very first thing done after reset)
-	//Power::ConfigureSMPSToLDOCascade(Power::VOLTAGE_1V8, RANGE_VOS0);
+	//H750 doesn't have SMPS so we have to only use the LDO
+	Power::ConfigureLDO(RANGE_VOS0);
 }
 
 void BSP_InitClocks()
 {
-	/*
-	//With CPU_FREQ_BOOST not set, max frequency is 520 MHz
-
 	//Configure the flash with wait states and prefetching before making any changes to the clock setup.
 	//A bit of extra latency is fine, the CPU being faster than flash is not.
-	Flash::SetConfiguration(513, RANGE_VOS0);
+	Flash::SetConfiguration(225, RANGE_VOS0);
 
 	//Switch back to the HSI clock (in case we're already running on the PLL from the bootloader)
 	RCCHelper::SelectSystemClockFromHSI();
@@ -70,42 +67,39 @@ void BSP_InitClocks()
 		1,		//PLL1
 		25,		//input is 25 MHz from the HSE
 		2,		//25/2 = 12.5 MHz at the PFD
-		40,		//12.5 * 40 = 500 MHz at the VCO
-		1,		//div P (primary output 500 MHz)
-		10,		//div Q (50 MHz kernel clock)
-		5,		//div R (100 MHz SWO Manchester bit clock, 50 Mbps data rate)
+		36,		//12.5 * 36 = 450 MHz at the VCO
+		1,		//div P (primary output 450 MHz)
+		10,		//div Q (45 MHz kernel clock)
+		5,		//div R (90 MHz SWO Manchester bit clock, 45 Mbps data rate)
 		RCCHelper::CLOCK_SOURCE_HSE
 	);
 
 	//Set up main system clock tree
 	RCCHelper::InitializeSystemClocks(
-		1,		//sysclk = 500 MHz
-		2,		//AHB = 250 MHz
-		4,		//APB1 = 62.5 MHz
-		4,		//APB2 = 62.5 MHz
-		4,		//APB3 = 62.5 MHz
-		4		//APB4 = 62.5 MHz
+		1,		//sysclk = 450 MHz (max 480 in VOS0)
+		2,		//AHB = 225 MHz (max 240)
+		2,		//APB1 = 112.5 MHz (max 120)
+		2,		//APB2 = 112.5 MHz
+		2,		//APB3 = 112.5 MHz
+		2		//APB4 = 112.5 MHz
 	);
 
 	//RNG clock should be >= HCLK/32
-	//AHB2 HCLK is 250 MHz so min 7.8125 MHz
-	//Select PLL1 Q clock (50 MHz)
+	//AHB2 HCLK is 225 MHz so min 7.03125 MHz
+	//Select PLL1 Q clock (45 MHz)
 	RCC.D2CCIP2R = (RCC.D2CCIP2R & ~0x300) | (0x100);
 
 	//Select PLL1 as system clock source
 	RCCHelper::SelectSystemClockFromPLL1();
-	*/
 }
 
 void BSP_InitLog()
 {
-	/*
 	static LogSink<MAX_LOG_SINKS> sink(&g_cliUART);
 	g_logSink = &sink;
 
 	g_log.Initialize(g_logSink, &g_logTimer);
 	g_log("Firmware compiled at %s on %s\n", __TIME__, __DATE__);
-	*/
 }
 
 void DoInitKVS()
@@ -126,7 +120,6 @@ void DoInitKVS()
 
 void InitRTCFromHSE()
 {
-	/*
 	g_log("Initializing RTC...\n");
 	LogIndenter li(g_log);
 	g_log("Using external clock divided by 50 (500 kHz)\n");
@@ -134,5 +127,4 @@ void InitRTCFromHSE()
 	//Turn on the RTC APB clock so we can configure it, then set the clock source for it in the RCC
 	RCCHelper::Enable(&_RTC);
 	RTC::SetClockFromHSE(50);
-	*/
 }

@@ -50,7 +50,7 @@ void __attribute__((weak)) BSP_DetectHardware()
 	#ifdef HAVE_PKG
 		RCCHelper::EnableSyscfg();
 
-		auto pkg = GetPackage(SYSCFG.PKGR);
+		auto pkg = GetPackage(SYSCFG.PKGR & 0xf);
 		g_log("STM32%s stepping %s, %s\n", part, srev, pkg);
 	#else
 		g_log("STM32%s stepping %s\n", part, srev);
