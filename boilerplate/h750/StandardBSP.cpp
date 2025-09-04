@@ -38,9 +38,9 @@
 #include <peripheral/RTC.h>
 #include "StandardBSP.h"
 
-//APB1 is 112.5 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
+//APB1 is 118.75 MHz but default is for timer clock to be 2x the bus clock (see table 53 of RM0468)
 //Divide down to get 10 kHz ticks
-Timer g_logTimer(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 22500);
+Timer g_logTimer(&TIM2, Timer::FEATURE_GENERAL_PURPOSE, 23750);
 
 void BSP_InitPower()
 {
@@ -67,25 +67,25 @@ void BSP_InitClocks()
 		1,		//PLL1
 		25,		//input is 25 MHz from the HSE
 		2,		//25/2 = 12.5 MHz at the PFD
-		36,		//12.5 * 36 = 450 MHz at the VCO
-		1,		//div P (primary output 450 MHz)
-		10,		//div Q (45 MHz kernel clock)
-		5,		//div R (90 MHz SWO Manchester bit clock, 45 Mbps data rate)
+		38,		//12.5 * 36 = 475 MHz at the VCO
+		1,		//div P (primary output 475 MHz)
+		10,		//div Q (47.5 MHz kernel clock)
+		5,		//div R (95 MHz SWO Manchester bit clock, 47.5 Mbps data rate)
 		RCCHelper::CLOCK_SOURCE_HSE
 	);
 
 	//Set up main system clock tree
 	RCCHelper::InitializeSystemClocks(
-		1,		//sysclk = 450 MHz (max 480 in VOS0)
-		2,		//AHB = 225 MHz (max 240)
-		2,		//APB1 = 112.5 MHz (max 120)
-		2,		//APB2 = 112.5 MHz
-		2,		//APB3 = 112.5 MHz
-		2		//APB4 = 112.5 MHz
+		1,		//sysclk = 475 MHz (max 480 in VOS0)
+		2,		//AHB = 237.5 MHz (max 240)
+		2,		//APB1 = 118.75 MHz (max 120)
+		2,		//APB2 = 118.75 MHz
+		2,		//APB3 = 118.75 MHz
+		2		//APB4 = 118.75 MHz
 	);
 
 	//RNG clock should be >= HCLK/32
-	//AHB2 HCLK is 225 MHz so min 7.03125 MHz
+	//AHB2 HCLK is 237.5 MHz so min 7.421875 MHz
 	//Select PLL1 Q clock (45 MHz)
 	RCC.D2CCIP2R = (RCC.D2CCIP2R & ~0x300) | (0x100);
 
