@@ -30,12 +30,15 @@
 #ifndef StandardBSP_h
 #define StandardBSP_h
 
+#include <peripheral/QuadSPI.h>
 #include <peripheral/UART.h>
+#include <embedded-utils/QuadSPI_SpiFlashInterface.h>
 
 void DoInitKVS();
 void InitRTCFromHSE();
 
 extern UART<32, 256> g_cliUART;
+extern QuadSPI_SpiFlashInterface g_flashQspi;
 
 void InitDTS();
 

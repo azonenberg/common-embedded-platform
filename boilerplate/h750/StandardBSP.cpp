@@ -32,7 +32,7 @@
  */
 
 #include <core/platform.h>
-#include <microkvs/driver/STM32StorageBank.h>
+#include <microkvs/driver/STM32QSPIStorageBank.h>
 #include <peripheral/Flash.h>
 #include <peripheral/Power.h>
 #include <peripheral/RTC.h>
@@ -104,18 +104,32 @@ void BSP_InitLog()
 
 void DoInitKVS()
 {
-	/*
-		Use sectors 6 and 7 of main flash (in single bank mode) for a 128 kB microkvs
+	//Base address of memory mapped flash
+	uint32_t flashBase = 0x90000000;
 
-		Each log entry is 64 bytes, and we want to allocate ~50% of storage to the log since our objects are pretty
-		small (SSH keys, IP addresses, etc). A 1024-entry log is a nice round number, and comes out to 64 kB or 50%,
-		leaving the remaining 64 kB or 50% for data.
-	 */
-	/*
-	static STM32StorageBank left(reinterpret_cast<uint8_t*>(0x080c0000), 0x20000);
-	static STM32StorageBank right(reinterpret_cast<uint8_t*>(0x080e0000), 0x20000);
-	InitKVS(&left, &right, 1024);
-	*/
+	g_log("Using external QSPI flash at 0x%08x for microkvs\n", flashBase);
+	LogIndenter li(g_log);
+
+	//End of flash (one after the last byte)
+	uint32_t flashEnd = flashBase + g_flashQspi.GetFlashSize();
+
+	//Last two sectors
+	uint32_t sectorSize = g_flashQspi.GetSectorSize();
+	uint32_t sectorA = flashEnd - sectorSize;
+	uint32_t sectorB = flashEnd - (sectorSize * 2);
+	g_log("Banks at %08x and %08x (%d kB sectors)\n", sectorA, sectorB, sectorSize / 1024);
+
+	//Each log entry is 64 bytes, and we want to allocate ~50% of storage to the log since our objects are pretty
+	//small (SSH keys, IP addresses, etc).
+	uint32_t halfSectorSize = sectorSize / 2;
+	uint32_t logEntrySize = 64;
+	uint32_t numLogEntries = halfSectorSize / logEntrySize;
+	g_log("Allocating %u kB to %u log entries\n", halfSectorSize / 1024, numLogEntries);
+
+	//Create the storage banks and initialize it
+	static STM32QSPIStorageBank left(g_flashQspi, reinterpret_cast<uint8_t*>(sectorA), sectorSize);
+	static STM32QSPIStorageBank right(g_flashQspi, reinterpret_cast<uint8_t*>(sectorB), sectorSize);
+	InitKVS(&left, &right, numLogEntries);
 }
 
 void InitRTCFromHSE()
