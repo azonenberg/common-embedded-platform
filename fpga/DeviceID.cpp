@@ -28,10 +28,12 @@
 ***********************************************************************************************************************/
 
 #include "../core/platform.h"
-#include <APB_DeviceInfo_7series.h>
+#include <APB_DeviceInfo_Generic.h>
 #include <APB_DeviceInfo_UltraScale.h>
+#include <APB_DeviceInfo_7series.h>
 
 //TODO: make separate header for prototypes
+void PrintFPGAInfo(volatile APB_DeviceInfo_Generic* devinfo);
 void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo);
 void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo);
 void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo, CharacterDevice* stream);
@@ -39,20 +41,24 @@ void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo, CharacterDevice*
 
 const char* GetNameOfFPGA(uint32_t idcode);
 
-//TODO: ifdefs to specify what type of fpga we have
-#include <APB_DeviceInfo_7series.h>
-extern volatile APB_DeviceInfo_7series FDEVINFO;
+//All device info IPs have the same register space so we don't have to care what it is to start
+extern volatile APB_DeviceInfo_Generic FDEVINFO;
 
 ///@brief USERCODE of the FPGA (build timestamp)
 uint32_t g_usercode = 0;
 
 ///@brief FPGA die serial number
-uint8_t g_fpgaSerial[8] = {0};
+uint8_t g_fpgaSerial[12] = {0};
 
 const char* GetNameOfFPGA(uint32_t idcode)
 {
 	switch(idcode & 0x0fffffff)
 	{
+		//Trion
+		case 0x0210a79: return "T20F256";
+		case 0x0240a79: return "T20F400";
+		case 0x0220a79: return "T85F484";
+
 		//Kintex-7
 		case 0x3647093:	return "XC7K70T";
 		case 0x364c093:	return "XC7K160T";
@@ -101,13 +107,12 @@ void InitFPGA()
 		uint32_t tmp = 0xbaadc0de;
 		uint32_t count = 1000;
 		for(uint32_t i=0; i<count; i++)
-		//for(uint32_t i=0; true; i++)
 		{
 			FDEVINFO.scratch = tmp;
 			uint32_t readback = FDEVINFO.scratch;
 			if(readback != tmp)
 			{
-				//if(errs == 0)
+				if(errs < 10)
 					g_log(Logger::ERROR, "Iteration %u: wrote 0x%08x, read 0x%08x\n", i, tmp, readback);
 				errs ++;
 			}
@@ -134,17 +139,22 @@ template<class T> void PrintFPGAInfoInt(T* devinfo)
 	{}
 
 	uint32_t idcode = devinfo->idcode;
-	memcpy(g_fpgaSerial, (const void*)devinfo->serial, 8);
+	memcpy(g_fpgaSerial, (const void*)devinfo->serial, 12);
 
-	//Print status
-	g_log("IDCODE: %08x (%s rev %d)\n", idcode, GetNameOfFPGA(idcode), idcode >> 28);
-	g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+	//Print status (TODO: truncate serial to 64 bits on 7 series and don't display on trion?)
+	auto name = GetNameOfFPGA(idcode);
+	g_log("IDCODE: %08x (%s rev %d)\n", idcode, name, idcode >> 28);
+	g_log("Serial: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		g_fpgaSerial[11], g_fpgaSerial[10], g_fpgaSerial[9], g_fpgaSerial[8],
 		g_fpgaSerial[7], g_fpgaSerial[6], g_fpgaSerial[5], g_fpgaSerial[4],
 		g_fpgaSerial[3], g_fpgaSerial[2], g_fpgaSerial[1], g_fpgaSerial[0]);
 
 	//Read USERCODE
 	g_usercode = devinfo->usercode;
 	g_log("Usercode: %08x\n", g_usercode);
+
+	//if Xilinx
+	if(name[0] == 'X')
 	{
 		LogIndenter li2(g_log);
 
@@ -176,6 +186,11 @@ void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo)
 	PrintFPGAInfoInt(devinfo);
 }
 
+void PrintFPGAInfo(volatile APB_DeviceInfo_Generic* devinfo)
+{
+	PrintFPGAInfoInt(devinfo);
+}
+
 template<class T> void PrintFPGAInfoInt(T* devinfo, CharacterDevice* stream)
 {
 	//Read the FPGA IDCODE and serial number
@@ -183,17 +198,22 @@ template<class T> void PrintFPGAInfoInt(T* devinfo, CharacterDevice* stream)
 	{}
 
 	uint32_t idcode = devinfo->idcode;
-	memcpy(g_fpgaSerial, (const void*)devinfo->serial, 8);
+	memcpy(g_fpgaSerial, (const void*)devinfo->serial, 12);
 
 	//Print status
-	stream->Printf("    IDCODE: %08x (%s rev %d)\n", idcode, GetNameOfFPGA(idcode), idcode >> 28);
-	stream->Printf("    Serial: %02x%02x%02x%02x%02x%02x%02x%02x\n",
+	auto name = GetNameOfFPGA(idcode);
+	stream->Printf("    IDCODE: %08x (%s rev %d)\n", idcode, name, idcode >> 28);
+	stream->Printf("Serial: %02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		g_fpgaSerial[11], g_fpgaSerial[10], g_fpgaSerial[9], g_fpgaSerial[8],
 		g_fpgaSerial[7], g_fpgaSerial[6], g_fpgaSerial[5], g_fpgaSerial[4],
 		g_fpgaSerial[3], g_fpgaSerial[2], g_fpgaSerial[1], g_fpgaSerial[0]);
 
 	//Read USERCODE
 	g_usercode = devinfo->usercode;
 	stream->Printf("    Usercode: %08x\n", g_usercode);
+
+	//if Xilinx
+	if(name[0] == 'X')
 	{
 		LogIndenter li2(g_log);
 

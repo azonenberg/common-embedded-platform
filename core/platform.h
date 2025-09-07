@@ -73,7 +73,7 @@ extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
 //Helpers for FPGA interfacing
 void InitFPGA();
 
-extern uint8_t g_fpgaSerial[8];
+extern uint8_t g_fpgaSerial[12];
 extern uint32_t g_usercode;
 
 #ifndef MAX_LOG_SINKS
