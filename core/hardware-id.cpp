@@ -39,6 +39,20 @@ const char* GetPackage(uint8_t pkg);
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Print identifying hardware info
 
+#ifdef STM32MP2
+
+//MP2 has completely different efuse based identification scheme
+void __attribute__((weak)) BSP_DetectHardware()
+{
+	g_log("Identifying hardware\n");
+	LogIndenter li(g_log);
+
+	g_log("unimplemented\n");
+	while(1)
+	{}
+}
+
+#else
 void __attribute__((weak)) BSP_DetectHardware()
 {
 	g_log("Identifying hardware\n");
@@ -119,6 +133,7 @@ void __attribute__((weak)) BSP_DetectHardware()
 	#endif
 	g_log("Lot %s, wafer %d, die (%d, %d)\n", waferLot, waferNum, waferX, waferY);
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Crack device IDs

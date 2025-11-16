@@ -155,6 +155,9 @@ bool ValidateAppPartition(const uint32_t* appVector)
 		g_log(Logger::ERROR, "CRC mismatch, application partition flash corruption?\n");
 		return false;
 	}
+
+	//should never get here, but compiler complains so add a default failure output
+	return false;
 }
 
 bool IsAppUpdated(const uint32_t* appVector)
@@ -229,7 +232,12 @@ void EraseFlash(uint32_t* appVector)
 	uint8_t* appStart				= reinterpret_cast<uint8_t*>(appVector);
 	auto start = g_logTimer.GetCount();
 
-	#ifdef STM32H750
+	#ifdef NO_INTERNAL_FLASH
+		//H750 relies on external flash, TODO actually do stuff there
+		g_log("UNIMPLEMENTED\n");
+		while(1)
+		{}
+	#elif defined(STM32H750)
 		//H750 relies on external flash, TODO actually do stuff there
 		g_log("UNIMPLEMENTED\n");
 		while(1)

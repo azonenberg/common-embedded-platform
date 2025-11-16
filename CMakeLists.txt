@@ -40,6 +40,7 @@ if(CEP_BUILD_SUPER)
 endif()
 
 if(CEP_BUILD_FPGA)
+	add_compile_definitions(CEP_BUILD_FPGA=1)
 	add_subdirectory(fpga)
 endif()
 

@@ -30,6 +30,8 @@
 #include <core/platform.h>
 #include "VSC8512.h"
 
+#ifdef CEP_BUILD_FPGA
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
@@ -413,3 +415,5 @@ uint16_t VSC8512::GetTemperature()
 	SelectMainPage();
 	return tempval;
 }
+
+#endif

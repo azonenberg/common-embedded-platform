@@ -61,7 +61,11 @@ extern "C" void hardware_init_hook()
 	#endif
 
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
-	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
+	//But only if this is a flash image!
+	//If we're executing out of RAM .data is writable and initialized out of the gate
+	#ifndef RAM_IMAGE
+		memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
+	#endif
 
 	//Copy ITCM code from flash to SRAM (if we have it)
 	#ifdef HAVE_ITCM
@@ -143,34 +147,7 @@ void __attribute__((weak)) BSP_MainLoop()
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// BSP functions (weak dummy implementations, expected to be overridden by application FW)
-
-void __attribute__((weak)) BSP_InitPower()
-{
-}
-
-void __attribute__((weak)) BSP_InitClocks()
-{
-}
-
-void __attribute__((weak)) BSP_InitUART()
-{
-}
-
-void __attribute__((weak)) BSP_InitLog()
-{
-}
-
-void __attribute__((weak)) BSP_Init()
-{
-}
-
-void __attribute__((weak)) BSP_MainLoopIteration()
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helpers for determining which mode the firmware was built in
 
 bool __attribute__((weak)) IsBootloader()

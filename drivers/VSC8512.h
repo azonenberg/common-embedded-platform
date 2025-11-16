@@ -30,6 +30,8 @@
 #ifndef VSC8512_h
 #define VSC8512_h
 
+#ifdef CEP_BUILD_FPGA
+
 #include <APB_MDIO.h>
 
 enum mdioreg_t_ext
@@ -187,5 +189,7 @@ protected:
 
 	MDIODevice m_mdioDevices[12];
 };
+
+#endif
 
 #endif
