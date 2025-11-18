@@ -29,6 +29,10 @@
 
 #include "platform.h"
 
+#ifdef HAVE_BSEC
+#include <peripheral/BSEC.h>
+#endif
+
 const char* GetStepping(uint16_t rev);
 const char* GetPartName(uint16_t device);
 
@@ -47,9 +51,44 @@ void __attribute__((weak)) BSP_DetectHardware()
 	g_log("Identifying hardware\n");
 	LogIndenter li(g_log);
 
+	g_log("Boot mode: 0x%x\n", SYSCFG.BOOTSR);
+
+	#ifdef STM32MP2_CPU2
+		g_log("Running on CPU2 (Cortex-M33)\n");
+		//TODO: print CPU descriptor/config info
+	#endif
+
+	//Check boot mode
+	switch(SYSCFG.BOOTSR)
+	{
+		case BOOT_MODE_DEV1:
+		case BOOT_MODE_DEV2:
+			#ifdef STM32MP2_CPU2
+				g_log("Development boot, cannot access fuses from CPU2\n");
+				return;
+			#endif
+			break;
+
+		default:
+			break;
+	}
+
+	//Turn on the fuse block since all of the MP2 config is in fuses
+	RCCHelper::Enable(&_BSEC);
+
+	//If we are in development boot mode we might not be able to access the OTP??
+	//g_log("BSEC.OTPSR = %08x\n", _BSEC.OTPSR);
+
+	/*
+		If shadowed AND (BSEC closed or w < 256) auto loaded to shadow register FVR[w]
+
+		If unshadowed, read FVR[w] is only possible if the most recent fuse memory read was to W
+		Data is auto cleared after read
+	 */
+
 	g_log("unimplemented\n");
-	while(1)
-	{}
+	//while(1)
+	//{}
 }
 
 #else
