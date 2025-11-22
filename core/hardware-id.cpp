@@ -34,16 +34,65 @@
 #endif
 
 const char* GetStepping(uint16_t rev);
-const char* GetPartName(uint16_t device);
+const char* GetPartName(
+	#ifdef STM32MP2
+		uint32_t device
+	#else
+		uint16_t device
+	#endif
+);
 
 #ifdef HAVE_PKG
 const char* GetPackage(uint8_t pkg);
 #endif
 
+void PrintCortexMInfo();
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Print info about a Cortex-M CPU
+
+void PrintCortexMInfo()
+{
+	LogIndenter li(g_log);
+
+	const char* vendor = "(Unknown)";
+	switch(SCB.CPUID >> 24)
+	{
+		case 0x41:
+			vendor = "ARM";
+			break;
+		default:
+			break;
+	}
+
+	uint32_t major = (SCB.CPUID >> 20) & 0xf;
+	uint32_t minor = SCB.CPUID & 0xf;
+
+	const char* part = "(Unknown)";
+	switch((SCB.CPUID >> 4) & 0xfff)
+	{
+		case 0xc24:
+			part = "Cortex-M4";
+			break;
+
+		case 0xc27:
+			part = "Cortex-M7";
+			break;
+
+		case 0xd21:
+			part = "Cortex-M33";
+			break;
+	}
+
+	g_log("%s %s revision %d patch %d\n", vendor, part, major, minor);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Print identifying hardware info
 
 #ifdef STM32MP2
+
+void PrintFuseInfo();
 
 //MP2 has completely different efuse based identification scheme
 void __attribute__((weak)) BSP_DetectHardware()
@@ -52,10 +101,9 @@ void __attribute__((weak)) BSP_DetectHardware()
 	LogIndenter li(g_log);
 
 	g_log("Boot mode: 0x%x\n", SYSCFG.BOOTSR);
-
 	#ifdef STM32MP2_CPU2
-		g_log("Running on CPU2 (Cortex-M33)\n");
-		//TODO: print CPU descriptor/config info
+		g_log("Running on CPU2\n");
+		PrintCortexMInfo();
 	#endif
 
 	//Check boot mode
@@ -73,22 +121,63 @@ void __attribute__((weak)) BSP_DetectHardware()
 			break;
 	}
 
+	PrintFuseInfo();
+}
+
+void PrintFuseInfo()
+{
+	g_log("We are boot CPU, printing fuse information\n");
+	LogIndenter li(g_log);
+
 	//Turn on the fuse block since all of the MP2 config is in fuses
 	RCCHelper::Enable(&_BSEC);
 
-	//If we are in development boot mode we might not be able to access the OTP??
-	//g_log("BSEC.OTPSR = %08x\n", _BSEC.OTPSR);
+	if(BSEC::ReadFuse(BSEC_VIRGIN) == 0)
+		g_log(Logger::ERROR, "OTP_HW_WORD0 is zero, expected nonzero value (access issue?)\n");
 
-	/*
-		If shadowed AND (BSEC closed or w < 256) auto loaded to shadow register FVR[w]
+	const char* part = GetPartName(BSEC::ReadFuse(BSEC_RPN));
+	uint32_t rev_id = BSEC::ReadFuse(BSEC_REV_ID) & 0x1f;
+	auto pkg = GetPackage(BSEC::ReadFuse(BSEC_PKG) & 7);
+	g_log("STM32%s stepping %d, %s\n", part, rev_id, pkg);
 
-		If unshadowed, read FVR[w] is only possible if the most recent fuse memory read was to W
-		Data is auto cleared after read
-	 */
+	//TODO: read DBGMCU ID code properly
+	uint32_t dbgmcu_idc = *reinterpret_cast<volatile uint32_t*>(0x4a010000);
+	g_log("Device ID: %04x rev %04x\n", dbgmcu_idc & 0xfff, dbgmcu_idc >> 16);
 
-	g_log("unimplemented\n");
-	//while(1)
-	//{}
+	g_log("oem_fsbla_monotonic_counter = %08x\n", BSEC::ReadFuse(BSEC_FSBLA_COUNT));
+	if(BSEC::ReadFuse(BSEC_BOOTROM_CONFIG_7) & 0x10)
+		g_log("FSBL-A is AARCH32\n");
+	else
+		g_log("FSBL-A is AARCH64\n");
+	/*_BSEC.OTPCR = 18;
+	if(_BSEC.FVR[18] & 0xf)
+		g_log("Secure boot active (CLOSED_LOCKED)\n");
+	else
+		g_log("Secure boot disabled (CLOSED_UNLOCKED)\n");
+	*/
+
+	uint32_t U_ID[3] =
+	{
+		BSEC::ReadFuse(BSEC_ID_0),
+		BSEC::ReadFuse(BSEC_ID_1),
+		BSEC::ReadFuse(BSEC_ID_2)
+	};
+	uint16_t waferX = U_ID[0] >> 16;
+	uint16_t waferY = U_ID[0] & 0xffff;
+	uint8_t waferNum = U_ID[1] & 0xff;
+
+	char waferLot[8] =
+	{
+		static_cast<char>((U_ID[1] >> 8) & 0xff),
+		static_cast<char>((U_ID[1] >> 16) & 0xff),
+		static_cast<char>((U_ID[1] >> 24) & 0xff),
+		static_cast<char>((U_ID[2] >> 0) & 0xff),
+		static_cast<char>((U_ID[2] >> 8) & 0xff),
+		static_cast<char>((U_ID[2] >> 16) & 0xff),
+		static_cast<char>((U_ID[2] >> 24) & 0xff),
+		'\0'
+	};
+	g_log("Lot %s, wafer %d, die (%d, %d)\n", waferLot, waferNum, waferX, waferY);
 }
 
 #else
@@ -180,7 +269,6 @@ void __attribute__((weak)) BSP_DetectHardware()
 #ifdef HAVE_PKG
 const char* GetPackage(uint8_t pkg)
 {
-	//For now, this is STM32H735 specific
 	#ifdef STM32H735
 		switch(pkg)
 		{
@@ -197,6 +285,16 @@ const char* GetPackage(uint8_t pkg)
 			case 10:	return "LQFP176 (industrial)";
 			default:	return "unknown package";
 		}
+	#elif defined(STM32MP2)
+		switch(pkg)
+		{
+			case 0:		return "Custom";
+			case 1:		return "TFBGA361 (10x10 mm)";
+			case 3:		return "TFBGA424";
+			case 5:		return "TFBGA436";
+			case 7:		return "TFBGA361 (16x16mm)";
+			default:	return "reserved/unknown package";
+		}
 	#elif defined(STM32H750)
 		switch(pkg)
 		{
@@ -210,7 +308,7 @@ const char* GetPackage(uint8_t pkg)
 }
 #endif
 
-const char* GetStepping(uint16_t rev)
+const char* GetStepping([[maybe_unused]] uint16_t rev)
 {
 	#if defined(STM32L4)	//L431
 		switch(rev)
@@ -251,7 +349,13 @@ const char* GetStepping(uint16_t rev)
 	return "(unknown)";
 }
 
-const char* GetPartName([[maybe_unused]] uint16_t device)
+const char* GetPartName(
+	#ifdef STM32MP2
+		[[maybe_unused]] uint32_t device
+	#else
+		[[maybe_unused]] uint16_t device
+	#endif
+	)
 {
 	#ifdef STM32L4
 		switch(device)
@@ -287,6 +391,28 @@ const char* GetPartName([[maybe_unused]] uint16_t device)
 			'\0'
 		};
 		return id;
+
+	#elif defined(STM32MP2)
+		switch(device)
+		{
+			case 0x0000'2000:	return "MP257C";
+			case 0x0008'2000:	return "MP255C";
+			case 0x000b'300c:	return "MP253C";
+			case 0x000b'306d:	return "MP251C";
+			case 0x4000'2e00:	return "MP257A";
+			case 0x4008'2e00:	return "MP255A";
+			case 0x400b'3e0c:	return "MP253A";
+			case 0x400b'3e6d:	return "MP251A";
+			case 0x8000'2000:	return "MP257F";
+			case 0x8008'2000:	return "MP255F";
+			case 0x800b'300c:	return "MP253F";
+			case 0x800b'306d:	return "MP251F";
+			case 0xc000'2e00:	return "MP257D";
+			case 0xc008'2e00:	return "MP255D";
+			case 0xc00b'3e0c:	return "MP253D";
+			case 0xc00b'3e6d:	return "MP251D";
+			default:			return "(unknown)";
+		}
 	#endif
 
 	//if we get here, unrecognized
