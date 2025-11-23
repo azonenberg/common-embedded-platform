@@ -9,13 +9,29 @@ aarch64-linux-gnu-strip -s -o $1-stripped.elf $1
 LINE=`ls -lh $1.bin | cut -d ' ' -f 5`
 echo "Image size:         $LINE";
 
-STACKSTART=$(aarch64-linux-gnu-objdump -t $1  | grep __end | cut -d ' ' -f 1);
-STACKEND=$(aarch64-linux-gnu-objdump -t $1  | grep __stack | cut -d ' ' -f 1);
+FREESTART=$(aarch64-linux-gnu-objdump -t $1  | grep __end | cut -d ' ' -f 1);
+FREEEND=$(aarch64-linux-gnu-objdump -t $1  | grep __core0stackend | cut -d ' ' -f 1);
+DFREESTART=$(echo "obase=10;ibase=16;${FREESTART^^}" | bc);
+DFREEEND=$(echo "obase=10;ibase=16;${FREEEND^^}" | bc);
+FREESIZE=$(expr $DFREEEND - $DFREESTART);
+#FREEKB=$(expr $FREESIZE / 1024);
+echo "Unallocated SYSRAM: $FREESIZE bytes";
+
+STACKSTART=$(aarch64-linux-gnu-objdump -t $1  | grep __core0stackend | cut -d ' ' -f 1);
+STACKEND=$(aarch64-linux-gnu-objdump -t $1  | grep __core0stackstart | cut -d ' ' -f 1);
 DSTACKSTART=$(echo "obase=10;ibase=16;${STACKSTART^^}" | bc);
 DSTACKEND=$(echo "obase=10;ibase=16;${STACKEND^^}" | bc);
 STACKSIZE=$(expr $DSTACKEND - $DSTACKSTART);
 #STACKKB=$(expr $STACKSIZE / 1024);
-echo "Stack size:         $STACKSIZE bytes";
+echo "Core 0 stack size:  $STACKSIZE bytes";
+
+STACKSTART=$(aarch64-linux-gnu-objdump -t $1  | grep __core1stackend | cut -d ' ' -f 1);
+STACKEND=$(aarch64-linux-gnu-objdump -t $1  | grep __core1stackstart | cut -d ' ' -f 1);
+DSTACKSTART=$(echo "obase=10;ibase=16;${STACKSTART^^}" | bc);
+DSTACKEND=$(echo "obase=10;ibase=16;${STACKEND^^}" | bc);
+STACKSIZE=$(expr $DSTACKEND - $DSTACKSTART);
+#STACKKB=$(expr $STACKSIZE / 1024);
+echo "Core 1 stack size:  $STACKSIZE bytes";
 
 DATASTART=$(aarch64-linux-gnu-objdump -t $1  | grep __data_start | cut -d ' ' -f 1);
 DATAEND=$(aarch64-linux-gnu-objdump -t $1  | grep __data_end | cut -d ' ' -f 1);
