@@ -33,6 +33,14 @@
 #include <peripheral/BSEC.h>
 #endif
 
+#ifdef HAVE_ICACHE
+#include <peripheral/ICACHE.h>
+#endif
+
+#ifdef HAVE_DCACHE
+#include <peripheral/DCACHE.h>
+#endif
+
 const char* GetStepping(uint16_t rev);
 const char* GetPartName(
 	#ifdef STM32MP2
@@ -95,6 +103,8 @@ void PrintCortexMInfo()
 #ifdef STM32MP2
 
 void PrintFuseInfo();
+void PrintIcacheInfo();
+void PrintDcacheInfo();
 
 //MP2 has completely different efuse based identification scheme
 void __attribute__((weak)) BSP_DetectHardware()
@@ -106,6 +116,8 @@ void __attribute__((weak)) BSP_DetectHardware()
 	#ifdef STM32MP2_CPU2
 		g_log("Running on CPU2\n");
 		PrintCortexMInfo();
+		PrintIcacheInfo();
+		PrintDcacheInfo();
 	#endif
 
 	//Check boot mode
@@ -124,6 +136,53 @@ void __attribute__((weak)) BSP_DetectHardware()
 	}
 
 	PrintFuseInfo();
+}
+
+void PrintIcacheInfo()
+{
+	#ifdef HAVE_ICACHE
+		g_log("External AHB L1 instruction cache present\n");
+		LogIndenter li(g_log);
+
+		g_log("Cache IPIDR 0x%08x, version %d.%d\n",
+			_ICACHE.IPIDR,
+			(_ICACHE.VERR >> 4) & 0xf,
+			_ICACHE.VERR & 0xf);
+		g_log("ECC available:    %s\n", (_ICACHE.HWCFGR & ICACHE_HWCFGR_ECC) ? "yes" : "no");
+		g_log("AHBS interface:   %d bits\n", ICACHE::GetAHBSWidth());
+		g_log("AHBM1 interface:  %d bits\n", ICACHE::GetAHBM1Width());
+		g_log("AHBM2 interface:  %d bits\n", ICACHE::GetAHBM2Width());
+		g_log("Remap capability: %d regions of %d MB\n", ICACHE::GetRemapRegions(), ICACHE::GetRemapRegionSize());
+		g_log("Line width:       %d bytes\n", ICACHE::GetCacheLineWidth());
+		g_log("Cache size:       %d kB\n", ICACHE::GetCacheSize());
+		g_log("Associativity:    %d way\n", ICACHE::GetNumWays());
+		g_log("Current status:   %s\n", ICACHE::IsEnabled() ? "enabled" : "disabled");
+		g_log("Hits:             %u\n", ICACHE::PerfGetHitCount());
+		g_log("Misses:           %u\n", ICACHE::PerfGetMissCount());
+	#endif
+}
+
+void PrintDcacheInfo()
+{
+	#ifdef HAVE_DCACHE
+		g_log("External AHB L1 data cache present\n");
+		LogIndenter li(g_log);
+
+		g_log("Cache IPIDR 0x%08x, version %d.%d\n",
+			_DCACHE.IPIDR,
+			(_DCACHE.VERR >> 4) & 0xf,
+			_DCACHE.VERR & 0xf);
+		g_log("ECC available:    %s\n", (_DCACHE.HWCFGR & DCACHE_HWCFGR_ECC) ? "yes" : "no");
+		g_log("AHBM interface:   %d bits\n", DCACHE::GetAHBMWidth());
+		g_log("Line width:       %d bytes\n", DCACHE::GetCacheLineWidth());
+		g_log("Cache size:       %d kB\n", DCACHE::GetCacheSize());
+		g_log("Associativity:    %d way\n", DCACHE::GetNumWays());
+		g_log("Current status:   %s\n", DCACHE::IsEnabled() ? "enabled" : "disabled");
+		g_log("Read hits:        %u\n", DCACHE::PerfGetReadHitCount());
+		g_log("Read misses:      %u\n", DCACHE::PerfGetReadMissCount());
+		g_log("Write hits:       %u\n", DCACHE::PerfGetWriteHitCount());
+		g_log("Write misses:     %u\n", DCACHE::PerfGetWriteMissCount());
+	#endif
 }
 
 void PrintFuseInfo()

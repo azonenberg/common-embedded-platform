@@ -59,6 +59,7 @@ extern "C" void _init()
 extern "C" void hardware_init_hook()
 {
 	//Enable caches, if we have them
+	//(this only works for internal Cortex-M caches, others are handled separately)
 	#ifdef HAVE_L1
 		InvalidateInstructionCache();
 		InvalidateDataCache();
