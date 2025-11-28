@@ -2,7 +2,7 @@
 
 # Extract the sections of interest to a binary file
 aarch64-linux-gnu-objcopy -O binary \
-	--only-section=.text --only-section=.rodata --only-section=.tcmtext --only-section=.data \
+	--only-section=.resetptr --only-section=.text --only-section=.rodata --only-section=.tcmtext --only-section=.data \
 	$1 $1.bin
 aarch64-linux-gnu-strip -s -o $1-stripped.elf $1
 
@@ -52,3 +52,11 @@ echo "Global BSS size:    $BSSSIZE bytes";
 GLOBALSIZE=$(expr $DATASIZE + $BSSSIZE);
 GLOBALKB=$(expr $GLOBALSIZE / 1024);
 echo "Total global size:  $GLOBALSIZE bytes";
+
+IPCBUFSIZE=$(aarch64-linux-gnu-objdump -h $1 | grep ipcbuf | cut -c 19-26);
+DIPCBUFSIZE=$(echo "obase=10;ibase=16;${IPCBUFSIZE^^}" | bc);
+echo "IPC buffer size:    $DIPCBUFSIZE bytes";
+
+# Run mkfsbl to build the FSBL-A image
+DIR=$(dirname $1)
+mkfsbl a $1.bin $DIR/fsbl.bin

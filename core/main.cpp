@@ -44,11 +44,17 @@ KVS* g_kvs = nullptr;
 ///@brief Global log sink object
 LogSink<MAX_LOG_SINKS>* g_logSink = nullptr;
 
-//called by newlib
+//called by newlib on arm targets and MulticoreStartup.S on aarch64 targets
 extern "C" void hardware_init_hook();
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Application entry point
+//called by newlib during initialization
+#ifdef __aarch64__
+extern "C" void _init();
+extern "C" void _init()
+{
+	hardware_init_hook();
+}
+#endif
 
 extern "C" void hardware_init_hook()
 {
@@ -59,6 +65,9 @@ extern "C" void hardware_init_hook()
 		EnableInstructionCache();
 		EnableDataCache();
 	#endif
+
+	//Enable all memories we might be using for globals
+	BSP_InitMemory();
 
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
 	//But only if this is a flash image!
@@ -72,7 +81,12 @@ extern "C" void hardware_init_hook()
 		memcpy(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
 	#endif
 
-	asm("dsb");
+	#ifdef __aarch64__
+		asm("dsb st");
+	#else
+		asm("dsb");
+	#endif
+
 	asm("isb");
 
 	//Initialize the floating point unit
@@ -80,6 +94,47 @@ extern "C" void hardware_init_hook()
 		SCB.CPACR |= ((3UL << 20U)|(3UL << 22U));
 	#endif
 }
+
+#ifdef MULTICORE
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Application entry point
+
+void CoreInit(unsigned int core)
+{
+	//Re-enable interrupts since the bootloader (if used) may have turned them off
+	//EnableInterrupts();
+
+	//Hardware setup on core 0
+	if(core == 0)
+	{
+		BSP_InitPower();
+		BSP_InitClocks();
+		BSP_InitUART();
+		BSP_InitLog();
+		//g_log("Logging ready\n");
+		//BSP_DetectHardware();
+
+		//Do any other late initialization
+		BSP_Init();
+	}
+
+	//For now, nothing on other cores
+}
+
+void CoreMain(unsigned int core)
+{
+	g_log("CoreMain on core %u\n", core);
+
+	//TODO
+	while(1)
+	{}
+}
+
+#else
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Application entry point
 
 int main()
 {
@@ -110,19 +165,9 @@ int main()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Global helper functions
+// Default main loop
 
-void __attribute__((noreturn)) Reset()
-{
-	SCB.AIRCR = 0x05fa0004;
-	while(1)
-	{}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Default main loop, may override in special cases
-
-void __attribute__((weak)) BSP_MainLoop()
+void BSP_MainLoop()
 {
 	g_log("Total tasks: %d of %d slots\n", g_tasks.size(), g_tasks.capacity());
 	g_log("Timer tasks: %d of %d slots\n", g_timerTasks.size(), g_timerTasks.capacity());
@@ -146,6 +191,22 @@ void __attribute__((weak)) BSP_MainLoop()
 		BSP_MainLoopIteration();
 	}
 }
+
+#endif
+
+#ifndef __aarch64__
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Global helper functions
+
+void __attribute__((noreturn)) Reset()
+{
+	SCB.AIRCR = 0x05fa0004;
+	while(1)
+	{}
+}
+
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helpers for determining which mode the firmware was built in

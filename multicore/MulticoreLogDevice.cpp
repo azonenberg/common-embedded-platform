@@ -27,40 +27,52 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef bsp_h
-#define bsp_h
+#include <core/platform.h>
+#include <stm32.h>
+#include "MulticoreLogDevice.h"
 
-/**
-	@file
-	@author	Andrew D. Zonenberg
-	@brief	Baseline functions provided by BSP
- */
+#ifdef MULTICORE
 
-///@brief Turn on SRAMs or memory controllers that are needed during early boot (e.g. global constructors
-void BSP_InitMemory();
+MulticoreLogDevice::MulticoreLogDevice()
+{
+	for(uint32_t i=0; i<NUM_SECONDARY_CORES; i++)
+	{
+		m_channels[i] = nullptr;
+		m_writePointers[i] = 0;
+		memset(m_txBuffers[i], 0, LOG_TXBUF_SIZE);
+	}
+}
 
-///@brief Initialize the on-chip voltage regulator
-void BSP_InitPower();
+void MulticoreLogDevice::PrintBinary(char ch)
+{
+	auto nchan = GetCurrentCore();
+	auto& wptr = m_writePointers[nchan];
+	m_txBuffers[nchan][wptr] = ch;
+	wptr ++;
 
-///@brief Initialize the required clock sources we need for operation
-void BSP_InitClocks();
+	//Flush log buffer at end of line
+	if( (wptr == LOG_TXBUF_SIZE) || (ch == '\n') )
+		Flush();
+}
 
-///@brief Initialize the debug serial port
-void BSP_InitUART();
+char MulticoreLogDevice::BlockingRead()
+{
+	return 0;
+}
 
-///@brief Initialize the logger to use the serial port
-void BSP_InitLog();
+void MulticoreLogDevice::Flush()
+{
+	//only flush the current core's log buffer to avoid potential races
+	auto nchan = GetCurrentCore();
+	auto& wptr = m_writePointers[nchan];
+	auto pchan = m_channels[nchan];
 
-///@brief Print hardware information
-void BSP_DetectHardware();
+	//Push to the IPC buffer
+	if(pchan)
+		pchan->GetSecondaryFifo().Push(reinterpret_cast<const uint8_t*>(m_txBuffers[nchan]), wptr);
 
-///@brief User-defined function to perform any other init required before entering the main event loop
-void BSP_Init();
-
-///@brief Run the main loop
-void BSP_MainLoop();
-
-///@brief Run an iteration of the main loop
-void BSP_MainLoopIteration();
+	//and mark our local fifo as free
+	wptr = 0;
+}
 
 #endif

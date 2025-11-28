@@ -46,10 +46,10 @@ const char* GetPartName(
 const char* GetPackage(uint8_t pkg);
 #endif
 
-void PrintCortexMInfo();
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Print info about a Cortex-M CPU
+
+#ifndef __aarch64__
 
 void PrintCortexMInfo()
 {
@@ -86,6 +86,8 @@ void PrintCortexMInfo()
 
 	g_log("%s %s revision %d patch %d\n", vendor, part, major, minor);
 }
+
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Print identifying hardware info

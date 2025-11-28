@@ -27,40 +27,46 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef bsp_h
-#define bsp_h
+#ifndef MulticoreLogDevice_h
+#define MulticoreLogDevice_h
+
+#ifdef MULTICORE
+
+#ifndef LOG_TXBUF_SIZE
+#define LOG_TXBUF_SIZE 256
+#endif
+
+#include "IPCDescriptorTable.h"
 
 /**
-	@file
-	@author	Andrew D. Zonenberg
-	@brief	Baseline functions provided by BSP
+	@brief Log device that logs to one of several IPC descriptor tables depending on the current core ID
  */
+class MulticoreLogDevice : public CharacterDevice
+{
+public:
+	MulticoreLogDevice();
 
-///@brief Turn on SRAMs or memory controllers that are needed during early boot (e.g. global constructors
-void BSP_InitMemory();
+	void LookupChannel(uint32_t i, const char* name)
+	{
+		if(i < NUM_SECONDARY_CORES)
+			m_channels[i] = g_ipcDescriptorTable.FindChannel(name);
+	}
 
-///@brief Initialize the on-chip voltage regulator
-void BSP_InitPower();
+	virtual void PrintBinary(char ch) override;
+	virtual char BlockingRead() override;
+	virtual void Flush() override;
 
-///@brief Initialize the required clock sources we need for operation
-void BSP_InitClocks();
+protected:
 
-///@brief Initialize the debug serial port
-void BSP_InitUART();
+	///@brief The IPC channels to the other core
+	IPCDescriptorChannel* m_channels[NUM_SECONDARY_CORES];
 
-///@brief Initialize the logger to use the serial port
-void BSP_InitLog();
+	///@brief FIFOs for accumulating log data we haven't yet pushed to the other core
+	char m_txBuffers[NUM_SECONDARY_CORES][LOG_TXBUF_SIZE];
 
-///@brief Print hardware information
-void BSP_DetectHardware();
+	///@brief Write pointers
+	uint32_t m_writePointers[NUM_SECONDARY_CORES];
+};
 
-///@brief User-defined function to perform any other init required before entering the main event loop
-void BSP_Init();
-
-///@brief Run the main loop
-void BSP_MainLoop();
-
-///@brief Run an iteration of the main loop
-void BSP_MainLoopIteration();
-
+#endif
 #endif

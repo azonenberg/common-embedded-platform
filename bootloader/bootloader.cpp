@@ -72,6 +72,10 @@ void App_Init()
 	Bootloader_Init();
 }
 
+#ifdef __aarch64__
+
+#else
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Boot flow
 
@@ -391,3 +395,5 @@ void Bootloader_MainLoop()
 	else
 		BootApplication(g_appVector);
 }
+
+#endif

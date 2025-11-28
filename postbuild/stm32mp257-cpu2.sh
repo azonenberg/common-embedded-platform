@@ -36,3 +36,11 @@ echo "Global BSS size:    $BSSSIZE bytes";
 GLOBALSIZE=$(expr $DATASIZE + $BSSSIZE);
 GLOBALKB=$(expr $GLOBALSIZE / 1024);
 echo "Total global size:  $GLOBALSIZE bytes";
+
+IPCBUFSIZE=$(arm-none-eabi-objdump -h $1 | grep ipcbuf | cut -c 19-26);
+DIPCBUFSIZE=$(echo "obase=10;ibase=16;${IPCBUFSIZE^^}" | bc);
+echo "IPC buffer size:    $DIPCBUFSIZE bytes";
+
+# Run mkfsbl to build the FSBL-M image
+DIR=$(dirname $1)
+mkfsbl m $1.bin $DIR/fsbl.bin

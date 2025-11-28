@@ -54,6 +54,7 @@ extern KVS* g_kvs;
 void __attribute__((noreturn)) Reset();
 void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
 void FormatBuildID(const uint8_t* buildID, char* strOut);
+void PrintCortexMInfo();
 
 //Returns true in bootloader, false in application firmware
 bool IsBootloader();
@@ -64,11 +65,19 @@ bool IsBootloader();
 
 #include "bsp.h"
 
-//All tasks
-extern etl::vector<Task*, MAX_TASKS>  g_tasks;
+//MULTI CORE flow
+#ifdef MULTICORE
 
-//Timer tasks (strict subset of total tasks)
-extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+	//TODO
+
+//SINGLE CORE flow
+#else
+	//All tasks
+	extern etl::vector<Task*, MAX_TASKS>  g_tasks;
+
+	//Timer tasks (strict subset of total tasks)
+	extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+#endif
 
 //Helpers for FPGA interfacing
 void InitFPGA();
@@ -80,5 +89,12 @@ extern uint32_t g_usercode;
 #define MAX_LOG_SINKS 2
 #endif
 extern LogSink<MAX_LOG_SINKS>* g_logSink;
+
+//Callbacks for multicore init
+#ifdef MULTICORE
+extern "C" void hardware_init_hook();
+extern "C" void CoreInit(unsigned int core);
+extern "C" void CoreMain(unsigned int core);
+#endif
 
 #endif
