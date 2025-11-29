@@ -55,14 +55,20 @@ const char* GetPackage(uint8_t pkg);
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Print info about a Cortex-M CPU
+// Print info about an ARM CPU
 
-#ifndef __aarch64__
+#ifdef __aarch64__
+
+void PrintCortexAInfo()
+{
+	//TODO: identify stuff
+}
+
+//#elseif defined(__arm__)
+#else
 
 void PrintCortexMInfo()
 {
-	LogIndenter li(g_log);
-
 	const char* vendor = "(Unknown)";
 	switch(SCB.CPUID >> 24)
 	{
@@ -92,7 +98,25 @@ void PrintCortexMInfo()
 			break;
 	}
 
-	g_log("%s %s revision %d patch %d\n", vendor, part, major, minor);
+	//not currently in linker script
+	uint32_t revidr = *reinterpret_cast<uint32_t*>(0xe000ecfc);
+
+	g_log("%s %s revision %d patch %d rev %d\n", vendor, part, major, minor, revidr);
+
+	LogIndenter li(g_log);
+	uint32_t ras = (SCB.ID_PFR0 >> 28);
+	uint32_t state1 = (SCB.ID_PFR0 >> 4) & 0xf;
+	g_log("RAS extension: %s\n", (ras == 2) ? "version 1" : "not available");
+	g_log("ID_AFR0:       %08x\n", SCB.ID_AFR0);
+	g_log("ID_DFR0:       %08x\n", SCB.ID_DFR0);
+	g_log("PACBTI:        %x\n", (SCB.ID_ISAR[5] >> 20) & 0xf);
+	g_log("MPU aux ctl:   %s\n", ((SCB.ID_MMFR[0] >> 20) & 0xf) == 1 ? "available" : "not available");
+	g_log("TCM:           %s\n", ((SCB.ID_MMFR[0] >> 16) & 0xf) == 1 ? "available" : "not available");
+	g_log("CLIDR:         %08x\n", SCB.CLIDR);
+	g_log("CTR:           %08x\n", SCB.CTR);
+	//don't bother printing T32/A32 flags
+
+	//TODO: check FPU and whatever else
 }
 
 #endif
@@ -112,30 +136,51 @@ void __attribute__((weak)) BSP_DetectHardware()
 	g_log("Identifying hardware\n");
 	LogIndenter li(g_log);
 
-	g_log("Boot mode: 0x%x\n", SYSCFG.BOOTSR);
-	#ifdef STM32MP2_CPU2
-		g_log("Running on CPU2\n");
-		PrintCortexMInfo();
-		PrintIcacheInfo();
-		PrintDcacheInfo();
-	#endif
-
 	//Check boot mode
+	#ifdef STM32MP2_CPU2
+		uint32_t thisCPU = 2;
+	#else
+		uint32_t thisCPU = 1;
+	#endif
+	uint32_t bootCPU = 0;
+	const char* bootMode = "(unknown)";
 	switch(SYSCFG.BOOTSR)
 	{
+		//Development boot: CPU1 is boot CPU
 		case BOOT_MODE_DEV1:
 		case BOOT_MODE_DEV2:
-			#ifdef STM32MP2_CPU2
-				g_log("Development boot, cannot access fuses from CPU2\n");
-				return;
-			#endif
+			bootMode = "development";
+			bootCPU = 1;
+			break;
+
+		//M33-TD modes
+		case BOOT_MODE_M33TD_SPI:
+			bootMode = "M33-TD from SPI flash";
+			bootCPU = 2;
 			break;
 
 		default:
 			break;
 	}
+	g_log("Boot mode: 0x%x (%s)\n", SYSCFG.BOOTSR, bootMode);
 
-	PrintFuseInfo();
+	#ifdef STM32MP2_CPU1
+		g_log("Running on CPU1\n");
+		PrintCortexAInfo();
+	#endif
+
+	#ifdef STM32MP2_CPU2
+		g_log("Running on CPU2\n");
+		{
+			LogIndenter li2(g_log);
+			PrintCortexMInfo();
+			PrintIcacheInfo();
+			PrintDcacheInfo();
+		}
+	#endif
+
+	if(thisCPU == bootCPU)
+		PrintFuseInfo();
 }
 
 void PrintIcacheInfo()

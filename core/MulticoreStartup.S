@@ -202,6 +202,9 @@ _start:
 	ldr		x1, [x0]
 	cbz		x1, .core1InitLoop
 
+	//Initialize the MMU
+	bl		BSP_InitMMU
+
 	//Application init
 	mov		x0, x19
 	bl		CoreInit

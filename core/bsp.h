@@ -63,4 +63,8 @@ void BSP_MainLoop();
 ///@brief Run an iteration of the main loop
 void BSP_MainLoopIteration();
 
+#ifdef __aarch64__
+extern "C" void BSP_InitMMU();
+#endif
+
 #endif

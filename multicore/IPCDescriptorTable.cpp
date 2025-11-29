@@ -128,24 +128,18 @@ void UnidirectionalIPCFifo::Push(const uint8_t* buf, uint32_t size)
 	//Wait until the IPC channel is free
 	if(m_primaryTx)
 	{
-		while(!m_ipcc->IsPrimaryToSecondaryChannelFree(m_setmask))
+		while(!m_ipcc->IsPrimaryToSecondaryChannelFree(m_clearmask))
 		{}
 	}
 	else
 	{
-		while(!m_ipcc->IsSecondaryToPrimaryChannelFree(m_setmask))
+		while(!m_ipcc->IsSecondaryToPrimaryChannelFree(m_clearmask))
 		{}
 	}
 
 	//Write it
-	auto destPtr = const_cast<uint8_t*>(m_buffer.Get() + m_writePtr);
-	//memcpy(destPtr, buf, size);
-	for(uint32_t i=0; i<size; i++)
-	{
-		uint8_t c = buf[i];
-		destPtr[i] = c;
-	}
-	m_writePtr += size;
+	memcpy(const_cast<uint8_t*>(m_buffer.Get()), buf, size);
+	m_writePtr = size;
 
 	//Mark it as busy
 	if(m_primaryTx)
@@ -179,10 +173,6 @@ uint32_t UnidirectionalIPCFifo::Pop(uint8_t* rxbuf)
 	uint32_t p = m_writePtr;
 
 	memcpy(rxbuf, const_cast<uint8_t*>(m_buffer.Get()), p);
-
-	m_writePtr = 0;
-
-	//TODO: cache flush
 	asm("dmb st");
 
 	if(m_primaryTx)

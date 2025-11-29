@@ -56,6 +56,10 @@ void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
 void FormatBuildID(const uint8_t* buildID, char* strOut);
 void PrintCortexMInfo();
 
+#ifdef __aarch64__
+void PrintCortexAInfo();
+#endif
+
 //Returns true in bootloader, false in application firmware
 bool IsBootloader();
 

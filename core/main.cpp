@@ -113,8 +113,8 @@ void CoreInit(unsigned int core)
 		BSP_InitClocks();
 		BSP_InitUART();
 		BSP_InitLog();
-		//g_log("Logging ready\n");
-		//BSP_DetectHardware();
+		g_log("Logging ready\n");
+		BSP_DetectHardware();
 
 		//Do any other late initialization
 		BSP_Init();
@@ -127,6 +127,15 @@ void CoreMain(unsigned int core)
 {
 	g_log("CoreMain on core %u\n", core);
 
+	/*uint32_t count = 0;
+	while(1)
+	{
+		g_logTimer.Sleep(1000 * 10);
+		g_log("Iteration %u\n", count);
+		g_log("Second message\n");
+		count ++;
+	}
+	*/
 	//TODO
 	while(1)
 	{}

@@ -71,12 +71,6 @@ public:
 	uint32_t WriteSize()
 	{ return m_size - m_writePtr; }
 
-	bool empty()
-	{ return (m_writePtr == 0); }
-
-	bool full()
-	{ return (m_writePtr == m_size); }
-
 	void Push(const uint8_t* buf, uint32_t size);
 	uint32_t Pop(uint8_t* rxbuf);
 
@@ -163,6 +157,9 @@ public:
 	#else
 	IPCDescriptorChannel* FindChannel(const char* name);
 	#endif
+
+	IPCDescriptorChannel* GetChannelByIndex(uint32_t i)
+	{ return &m_channels[i]; }
 
 protected:
 
