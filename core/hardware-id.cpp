@@ -61,7 +61,98 @@ const char* GetPackage(uint8_t pkg);
 
 void PrintCortexAInfo()
 {
-	//TODO: identify stuff
+	auto midr = GetMIDR();
+
+	//63:32 res0
+
+	//31:24 vendor
+	const char* vendor = "(Unknown)";
+	switch( (midr >> 24) & 0xff)
+	{
+		case 0x41:
+			vendor = "ARM";
+			break;
+		default:
+			break;
+	}
+
+	uint8_t major = (midr >> 20) & 0xf;
+	uint8_t minor = midr & 0xf;
+
+	//19:16 architecture, we know we're aarch64 so ignore it
+
+	//15:4 is part number
+	const char* part = "(Unknown)";
+	switch((midr >> 4) & 0xfff)
+	{
+		case 0xd04:
+			part = "Cortex-A35";
+			break;
+	}
+
+	g_log("%s %s revision %d patch %d\n", vendor, part, major, minor);
+
+	LogIndenter li(g_log);
+
+	//Enumerate caches
+	auto clidr = GetCLIDR();
+	for(int i=0; i<7; i++)
+	{
+		auto cachetype = (clidr >> (3*i)) & 0x7;
+		if(cachetype == 0)
+			break;
+
+		auto ccsidr_du = GetCCSIDR(i << 1);
+		auto ccsidr_i = GetCCSIDR((i << 1) | 1);
+
+		//TODO: different format for FEAT_CCIDX
+		switch(cachetype)
+		{
+			case 1:
+				g_log("L%d instruction cache: %d sets, %d-way associative, %d bytes per line\n",
+					i+1,
+					((ccsidr_i >> 13) & 0x7fff) + 1,
+					((ccsidr_i & 0x1ff8) >> 3) + 1,
+					16 << (ccsidr_i & 7));
+				break;
+
+			case 2:
+				g_log("L%d data cache: %d sets, %d-way associative, %d bytes per line\n",
+					i+1,
+					((ccsidr_du >> 13) & 0x7fff) + 1,
+					((ccsidr_du & 0x1ff8) >> 3) + 1,
+					16 << (ccsidr_du & 7));
+				break;
+
+			case 3:
+				g_log("L%d I/D cache\n", i+1);
+				{
+					LogIndenter li2(g_log);
+					g_log("Instruction cache: %d sets, %d-way associative, %d bytes per line\n",
+						((ccsidr_i >> 13) & 0x7fff) + 1,
+						((ccsidr_i & 0x1ff8) >> 3) + 1,
+						16 << (ccsidr_i & 7));
+					g_log("Data cache: %d sets, %d-way associative, %d bytes per line\n",
+						((ccsidr_du >> 13) & 0x7fff) + 1,
+						((ccsidr_du & 0x1ff8) >> 3) + 1,
+						16 << (ccsidr_du & 7));
+				}
+				break;
+
+			case 4:
+				g_log("L%d unified cache: %d sets, %d-way associative, %d bytes per line\n",
+					i+1,
+					((ccsidr_du >> 13) & 0x7fff) + 1,
+					((ccsidr_du & 0x1ff8) >> 3) + 1,
+					16 << (ccsidr_du & 7));
+				break;
+		}
+	}
+	auto innerBoundary = (clidr >> 30) & 7;
+	if(innerBoundary != 0)
+		g_log("L%d cache is the highest inner cacheable\n", innerBoundary);
+
+	//TODO: print info from CTR_EL0
 }
 
 //#elseif defined(__arm__)
