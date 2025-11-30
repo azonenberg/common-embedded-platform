@@ -127,6 +127,19 @@ _start:
 	mov		x29, 0
 	mov		x30, 0
 
+	//Clear out exception status registers
+	msr		ELR_EL1, x0
+	msr		ESR_EL1, x0
+	msr		SPSR_EL1, x0
+
+	msr		ELR_EL2, x0
+	msr		ESR_EL2, x0
+	msr		SPSR_EL2, x0
+
+	msr		ELR_EL3, x0
+	msr		ESR_EL3, x0
+	msr		SPSR_EL3, x0
+
 	//Seems like ROM code enables SMP already, so nothing needed for that
 
 	//L1 is not active yet so we need to turn that on still
