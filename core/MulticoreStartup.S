@@ -30,6 +30,9 @@
 #ifdef MULTICORE
 #ifdef __aarch64__
 
+//gcc doesn't have this out of the box
+#define CPUECTLR_EL1 S3_1_C15_C2_1
+
 //Jump to reset vector at start of image
 .section .resetptr
 	b	_start				//jump to entry point at start of image so mkfsbl knows where our entry point is
@@ -140,19 +143,19 @@ _start:
 	msr		ESR_EL3, x0
 	msr		SPSR_EL3, x0
 
-	//Seems like ROM code enables SMP already, so nothing needed for that
-
-	//L1 is not active yet so we need to turn that on still
-	//ROM code invalidates the L1 on reset by default, so we don't have to do that ourself, just enable it
-
 	//TODO: initialize FPU and clear its registers
 	//TODO: clear NEON/vector registers
-
-	//TODO: bring up main CPU PLL vs running at whatever freq we do in startup code (this should probably be done in C++)
 
 	//Set up initial exception vector table
 	adr		x0, _vectors
 	msr		VBAR_EL3, x0
+
+	//Enable cache coherency
+	mrs		x0, CPUECTLR_EL1
+	mov		x1, #0x40
+	orr		x0, x0, x1
+	msr		CPUECTLR_EL1, x0
+	dmb		st
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Figure out which core we're on
@@ -175,17 +178,29 @@ _start:
 	ldr		x0, =__core0stackstart
 	mov		sp, x0
 
+	//Set up initial page tables and turn on the MMU
+	bl		BSP_InitPageTables
+	dmb		st
+	bl		BSP_InitMMU
+
 	//Call global constructors and do hardware init
 	bl		__libc_init_array
 
 	//Call application init for core 0 before other cores, so we can zero BSS and whatever else we need
-	mov		x0, x19
+	bl		GetCurrentCore
 	bl		CoreInit
 
 	//Tell other cores constructors are done
 	ldr		x0, =__startupInitStage
 	mov		x1, #1
 	str		x1, [x0]
+	dmb		st
+
+	//Clear caches before enabling them
+	bl		InvalidateInstructionCache
+	bl		EnableInstructionCache
+	bl		InvalidateDataCache
+	bl		EnableDataCache
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Common initialization
@@ -193,7 +208,7 @@ _start:
 .CoreInitDone:
 
 	//Call the main function
-	mov		x0, x19
+	bl		GetCurrentCore
 	bl		CoreMain
 
 	//If application main loop ever terminates, hang here
@@ -218,8 +233,14 @@ _start:
 	//Initialize the MMU
 	bl		BSP_InitMMU
 
+	//Clear caches before enabling them
+	bl		InvalidateInstructionCache
+	bl		EnableInstructionCache
+	bl		InvalidateDataCache
+	bl		EnableDataCache
+
 	//Application init
-	mov		x0, x19
+	bl		GetCurrentCore
 	bl		CoreInit
 
 	//Done, start the application code

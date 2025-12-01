@@ -138,8 +138,13 @@ void UnidirectionalIPCFifo::Push(const uint8_t* buf, uint32_t size)
 	}
 
 	//Write it
-	memcpy(const_cast<uint8_t*>(m_buffer.Get()), buf, size);
+	auto wbuf = const_cast<uint8_t*>(m_buffer.Get());
+	memcpy(wbuf, buf, size);
 	m_writePtr = size;
+
+	//Cache flush
+	CleanDataCache(wbuf, size);
+	CleanDataCache((void*)&m_writePtr, sizeof(m_writePtr));
 
 	//Mark it as busy
 	if(m_primaryTx)

@@ -64,6 +64,7 @@ void BSP_MainLoop();
 void BSP_MainLoopIteration();
 
 #ifdef __aarch64__
+extern "C" void BSP_InitPageTables();
 extern "C" void BSP_InitMMU();
 #endif
 
