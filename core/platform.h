@@ -72,7 +72,13 @@ bool IsBootloader();
 //MULTI CORE flow
 #ifdef MULTICORE
 
-	//TODO
+	//TODO: per core max? for now set it to be global max
+
+	//All tasks
+	extern etl::vector<Task*, MAX_TASKS>  g_tasks[NUM_SECONDARY_CORES];
+
+	//Timer tasks (strict subset of total tasks), can only live on core 0 for now
+	extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
 
 //SINGLE CORE flow
 #else

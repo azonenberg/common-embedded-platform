@@ -126,20 +126,43 @@ void CoreInit(unsigned int core)
 
 void CoreMain(unsigned int core)
 {
-	g_log("CoreMain on core %u\n", core);
+	g_log("Total tasks: %d of %d slots\n", g_tasks[core].size(), g_tasks[core].capacity());
+	if(core == 0)
+		g_log("Timer tasks: %d of %d slots\n", g_timerTasks.size(), g_timerTasks.capacity());
+	g_log("Ready\n");
 
-	/*uint32_t count = 0;
-	while(1)
+	//First core runs timer tasks and non-task stuff
+	if(core == 0)
 	{
-		g_logTimer.Sleep(1000 * 10);
-		g_log("Iteration %u\n", count);
-		g_log("Second message\n");
-		count ++;
+		while(1)
+		{
+			//Check for overflows on our timer
+			const int logTimerMax = 60000;
+			if(g_log.UpdateOffset(logTimerMax))
+			{
+				for(auto t : g_timerTasks)
+					t->OnTimerShift(logTimerMax);
+			}
+
+			//Run all of our regular tasks
+			for(auto t : g_tasks[core])
+				t->Iteration();
+
+			//Run any non-task stuff
+			BSP_MainLoopIteration();
+		}
 	}
-	*/
-	//TODO
-	while(1)
-	{}
+
+	//Other core(s) just run tasks
+	else
+	{
+		while(1)
+		{
+			//Run all of our regular tasks
+			for(auto t : g_tasks[core])
+				t->Iteration();
+		}
+	}
 }
 
 #else
