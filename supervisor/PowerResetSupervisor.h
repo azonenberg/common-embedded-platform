@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -40,7 +40,7 @@
 class PowerResetSupervisor : public Task
 {
 public:
-	PowerResetSupervisor(etl::ivector<RailDescriptor*>& rails, etl::ivector<ResetDescriptor*>& resets)
+	PowerResetSupervisor(etl::ivector<RailDescriptor*>& rails, etl::ivector<ResetDescriptorBase*>& resets)
 		: m_railSequence(rails)
 		, m_resetSequence(resets)
 		, m_powerOn(false)
@@ -105,7 +105,7 @@ protected:
 	etl::ivector<RailDescriptor*>& m_railSequence;
 
 	///@brief The reset sequence
-	etl::ivector<ResetDescriptor*>& m_resetSequence;
+	etl::ivector<ResetDescriptorBase*>& m_resetSequence;
 
 	///@brief True if power is all the way on
 	bool m_powerOn;
