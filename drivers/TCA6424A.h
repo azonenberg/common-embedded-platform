@@ -61,4 +61,51 @@ protected:
 	uint8_t m_outvals[3];
 };
 
+/**
+	@brief GPIOPin esque wrapper for TCA6424A GPIO channels
+ */
+class TCA6424A_GPIO
+{
+public:
+	TCA6424A_GPIO(TCA6424A& parent, uint8_t channel)
+		: m_parent(parent)
+		, m_channel(channel)
+		, m_output(false)
+		, m_outputValue(false)
+	{}
+
+	void SetDirection(bool input)
+	{
+		m_parent.SetDirection(m_channel, input);
+		m_output = !input;
+	}
+
+	void operator=(bool value)
+	{
+		m_parent.SetOutputValue(m_channel, value);
+		m_outputValue = value;
+	}
+
+	operator bool()
+	{
+		if(m_output)
+			return m_outputValue;
+
+		//FIXME implement input code path
+		else
+			return false;
+	}
+
+protected:
+	TCA6424A& m_parent;
+
+	uint8_t m_channel;
+
+	//Cached values for output readback
+	bool m_output;
+
+	//Most recently written value
+	bool m_outputValue;
+};
+
 #endif
