@@ -79,6 +79,7 @@ protected:
 /**
 	@brief A power rail that has an active-high enable line, but no feedback on whether it's up
  */
+template<class T = GPIOPin>
 class RailDescriptorWithEnable : public RailDescriptor
 {
 public:
@@ -91,14 +92,15 @@ public:
 		@param timer	Timer to use for sequencing delays
 		@param delay	Delay, in timer ticks, after turning on this rail before doing anything else
 	 */
-	RailDescriptorWithEnable(const char* name, GPIOPin& enable, Timer& timer, uint16_t delay)
+	RailDescriptorWithEnable(const char* name, T& enable, Timer& timer, uint16_t delay)
 		: RailDescriptor(name)
 		, m_enable(enable)
 		, m_timer(timer)
 		, m_delay(delay)
 	{
-		//Turn off immediately
-		m_enable = 0;
+		//Turn off immediately if it's a regular GPIO pin
+		if(std::is_same_v<T, GPIOPin>)
+			m_enable = 0;
 	}
 
 	virtual bool TurnOn() override
@@ -113,7 +115,7 @@ public:
 	{ m_enable = 0; };
 
 protected:
-	GPIOPin& m_enable;
+	T& m_enable;
 	Timer& m_timer;
 	uint16_t m_delay;
 };
@@ -121,7 +123,8 @@ protected:
 /**
 	@brief A power rail that has an active-high enable line and an active-high PGOOD line
  */
-class RailDescriptorWithEnableAndPGood : public RailDescriptorWithEnable
+template<class TG = GPIOPin, class TE = GPIOPin>
+class RailDescriptorWithEnableAndPGood : public RailDescriptorWithEnable<TE>
 {
 public:
 	/**
@@ -133,30 +136,30 @@ public:
 		@param timer	Timer to use for sequencing delays
 		@param timeout	Timeout, in timer ticks, at which point the rail is expected to have come up
 	 */
-	RailDescriptorWithEnableAndPGood(const char* name, GPIOPin& enable, GPIOPin& pgood, Timer& timer, uint16_t timeout)
-		: RailDescriptorWithEnable(name, enable, timer, timeout)
+	RailDescriptorWithEnableAndPGood(const char* name, TE& enable, TG& pgood, Timer& timer, uint16_t timeout)
+		: RailDescriptorWithEnable<TE>(name, enable, timer, timeout)
 		, m_pgood(pgood)
 	{
 		//Turn off immediately
-		m_enable = 0;
+		RailDescriptorWithEnable<TE>::m_enable = 0;
 	}
 
 	virtual bool TurnOn() override
 	{
-		g_log("Turning on %s\n", m_name);
+		g_log("Turning on %s\n", RailDescriptorWithEnable<TE>::m_name);
 
-		m_enable = 1;
+		RailDescriptorWithEnable<TE>::m_enable = 1;
 
-		for(uint32_t i=0; i<m_delay; i++)
+		for(uint32_t i=0; i<RailDescriptorWithEnable<TE>::m_delay; i++)
 		{
 			if(m_pgood)
 				return true;
-			m_timer.Sleep(1);
+			RailDescriptorWithEnable<TE>::m_timer.Sleep(1);
 		}
 
 		if(!m_pgood)
 		{
-			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
+			g_log(Logger::ERROR, "Rail %s failed to come up\n", RailDescriptorWithEnable<TE>::m_name);
 			return false;
 		}
 		return true;
@@ -166,13 +169,14 @@ public:
 	{ return m_pgood; }
 
 protected:
-	GPIOPin& m_pgood;
+	TG& m_pgood;
 };
 
 /**
 	@brief A power rail that has an active-high enable line and an active-high PGOOD line
  */
-class RailDescriptorWithActiveLowEnableAndPGood : public RailDescriptorWithEnableAndPGood
+template<class TE = GPIOPin, class TG = GPIOPin>
+class RailDescriptorWithActiveLowEnableAndPGood : public RailDescriptorWithEnableAndPGood<TE, TG>
 {
 public:
 	/**
@@ -184,35 +188,35 @@ public:
 		@param timer	Timer to use for sequencing delays
 		@param timeout	Timeout, in timer ticks, at which point the rail is expected to have come up
 	 */
-	RailDescriptorWithActiveLowEnableAndPGood(const char* name, GPIOPin& enable, GPIOPin& pgood, Timer& timer, uint16_t timeout)
-		: RailDescriptorWithEnableAndPGood(name, enable, pgood, timer, timeout)
+	RailDescriptorWithActiveLowEnableAndPGood(const char* name, TE& enable, TG& pgood, Timer& timer, uint16_t timeout)
+		: RailDescriptorWithEnableAndPGood<TE, TG>(name, enable, pgood, timer, timeout)
 	{
-		m_enable = 1;
+		RailDescriptorWithEnable<TE>::m_enable = 1;
 	}
 
 	virtual bool TurnOn() override
 	{
-		g_log("Turning on %s\n", m_name);
+		g_log("Turning on %s\n", RailDescriptorWithEnable<TE>::m_name);
 
-		m_enable = 0;
+		RailDescriptorWithEnable<TE>::m_enable = 0;
 
-		for(uint32_t i=0; i<m_delay; i++)
+		for(uint32_t i=0; i<RailDescriptorWithEnable<TE>::m_delay; i++)
 		{
-			if(m_pgood)
+			if(RailDescriptorWithEnableAndPGood<TE, TG>::m_pgood)
 				return true;
-			m_timer.Sleep(1);
+			RailDescriptorWithEnable<TE>::m_timer.Sleep(1);
 		}
 
-		if(!m_pgood)
+		if(!RailDescriptorWithEnableAndPGood<TE, TG>::m_pgood)
 		{
-			g_log(Logger::ERROR, "Rail %s failed to come up\n", m_name);
+			g_log(Logger::ERROR, "Rail %s failed to come up\n", RailDescriptorWithEnable<TE>::m_name);
 			return false;
 		}
 		return true;
 	}
 
 	virtual void TurnOff() override
-	{ m_enable = 1; };
+	{ RailDescriptorWithEnable<TE>::m_enable = 1; };
 };
 
 #if defined(HAVE_ADC) && defined(HAVE_FPU)
@@ -221,12 +225,13 @@ public:
 extern ADC* g_adc;
 
 ///@brief Rail descriptor using ADC measurement instead of PGOOD
-class RailDescriptorWithEnableAndADC : public RailDescriptorWithEnable
+template<class T>
+class RailDescriptorWithEnableAndADC : public RailDescriptorWithEnable<T>
 {
 public:
 	RailDescriptorWithEnableAndADC(
 		const char* name,
-		GPIOPin& enable,
+		T& enable,
 		int adcChannel,
 		float vmin,
 		float vmax,
@@ -235,7 +240,7 @@ public:
 		uint16_t timeout,
 		float vdd = 3.3,
 		int navg = 4)
-		: RailDescriptorWithEnable(name, enable, timer, timeout)
+		: RailDescriptorWithEnable<T>(name, enable, timer, timeout)
 		, m_adcChannel(adcChannel)
 		, m_vmin(vmin)
 		, m_vmax(vmax)
@@ -246,21 +251,21 @@ public:
 
 	virtual bool TurnOn() override
 	{
-		g_log("Turning on %s\n", m_name);
+		g_log("Turning on %s\n", RailDescriptorWithEnable<T>::m_name);
 
-		m_enable = 1;
+		RailDescriptorWithEnable<T>::m_enable = 1;
 
-		for(uint32_t i=0; i<m_delay; i++)
+		for(uint32_t i=0; i<RailDescriptorWithEnable<T>::m_delay; i++)
 		{
 			if(IsPowerGood())
 				return true;
-			m_timer.Sleep(1);
+			RailDescriptorWithEnable<T>::m_timer.Sleep(1);
 		}
 
 		if(!IsPowerGood())
 		{
 			g_log(Logger::ERROR, "Rail %s failed to come up (measured %d mV, valid range [%d, %d])\n",
-				m_name,
+				RailDescriptorWithEnable<T>::m_name,
 				static_cast<int>(GetVoltage() * 1000),
 				static_cast<int>(m_vmin * 1000),
 				static_cast<int>(m_vmax * 1000) );
