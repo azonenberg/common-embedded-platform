@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -31,12 +31,18 @@
 #define CEP_CLI_CommonCommands_h
 
 #include <core/platform.h>
-#include <staticnet/stack/staticnet.h>
 #include <embedded-cli/CLIOutputStream.h>
 #include <embedded-cli/CLISessionContext.h>
+
+#ifdef CEP_BUILD_TCPIP
+#include <staticnet/stack/staticnet.h>
 #include "../tcpip/CommonTCPIP.h"
 #include "../tcpip/SSHKeyManager.h"
+#endif
+
+#ifdef CEP_BUILD_SERVICES
 #include "../services/STM32NTPClient.h"
+#endif
 
 class EthernetProtocol;
 
@@ -46,6 +52,7 @@ void PrintFlashSummary(CLIOutputStream* stream);
 void PrintFlashDetails(CLIOutputStream* stream, const char* objectName);
 void RemoveFlashKey(CLIOutputStream* stream, const char* key);
 
+#ifdef CEP_BUILD_TCPIP
 void PrintSSHHostKey(CLIOutputStream* stream);
 
 void PrintARPCache(CLIOutputStream* stream, EthernetProtocol* eth);
@@ -61,5 +68,6 @@ void PrintSSHKeys(CLIOutputStream* stream, SSHKeyManager& mgr);
 
 void PrintIPAddress(CLIOutputStream* stream);
 void PrintDefaultRoute(CLIOutputStream* stream);
+#endif
 
 #endif

@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -27,7 +27,10 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
+#ifdef CEP_BUILD_FPGA
 #include <fpga/AcceleratedCryptoEngine.h>
+#endif
+
 #include "CommonCommands.h"
 
 /**
@@ -333,6 +336,8 @@ void RemoveFlashKey(CLIOutputStream* stream, const char* key)
 		stream->Printf("Object \"%s\" not found, could not delete\n", key);
 }
 
+#ifdef CEP_BUILD_TCPIP
+
 void PrintSSHHostKey(CLIOutputStream* stream)
 {
 	char buf[64] = {0};
@@ -561,3 +566,5 @@ void PrintSSHKeys(CLIOutputStream* stream, SSHKeyManager& mgr)
 		}
 	}
 }
+
+#endif
