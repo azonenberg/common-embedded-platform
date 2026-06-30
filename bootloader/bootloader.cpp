@@ -288,7 +288,7 @@ void __attribute__((noreturn)) BootApplication(const uint32_t* appVector)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Top level main loop for the bootloader
 
-void Bootloader_MainLoop()
+void __attribute__((noreturn)) Bootloader_MainLoop()
 {
 	//Check bbram state
 	bool goStraightToDFU = false;

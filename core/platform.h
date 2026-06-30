@@ -81,4 +81,6 @@ extern uint32_t g_usercode;
 #endif
 extern LogSink<MAX_LOG_SINKS>* g_logSink;
 
+void __attribute__((noreturn)) DefaultMainLoop();
+
 #endif

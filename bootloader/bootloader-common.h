@@ -92,7 +92,7 @@ void __attribute__((noreturn)) Bootloader_FirmwareUpdateFlow();
 /**
 	@brief Main event loop for the bootloader
  */
-void Bootloader_MainLoop();
+void __attribute__((noreturn)) Bootloader_MainLoop();
 
 /**
 	@brief Check if the provided app partition contains what looks like a valid image

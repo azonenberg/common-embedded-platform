@@ -55,7 +55,7 @@ void BSP_DetectHardware();
 void BSP_Init();
 
 ///@brief Run the main loop
-void BSP_MainLoop();
+void __attribute__((noreturn)) BSP_MainLoop();
 
 ///@brief Run an iteration of the main loop
 void BSP_MainLoopIteration();

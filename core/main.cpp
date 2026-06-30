@@ -118,7 +118,12 @@ void __attribute__((noreturn)) Reset()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Default main loop, may override in special cases
 
-void __attribute__((weak)) BSP_MainLoop()
+void __attribute__((weak)) __attribute__((noreturn)) BSP_MainLoop()
+{
+	DefaultMainLoop();
+}
+
+void __attribute__((noreturn)) DefaultMainLoop()
 {
 	g_log("Total tasks: %d of %d slots\n", g_tasks.size(), g_tasks.capacity());
 	g_log("Timer tasks: %d of %d slots\n", g_timerTasks.size(), g_timerTasks.capacity());
