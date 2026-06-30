@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -32,63 +32,83 @@
 
 #include <peripheral/GPIO.h>
 
-/**
-	@brief Wrapper for a reset pin which may be active high or low
- */
-class ResetDescriptor
+class ResetDescriptorBase
 {
 public:
-	ResetDescriptor(GPIOPin& pin, const char* name)
-	: m_pin(pin)
-	, m_name(name)
+	ResetDescriptorBase(const char* name)
+	: m_name(name)
 	{}
 
 	virtual void Assert() =0;
 	virtual void Deassert() =0;
-
-	virtual bool IsReady()
-	{ return true; }
+	virtual bool IsReady() =0;
 
 	const char* GetName() const
 	{ return m_name; }
 
 protected:
-	GPIOPin& m_pin;
 	const char* m_name;
+};
+
+/**
+	@brief Wrapper for a reset pin which may be active high or low
+ */
+template<class T = GPIOPin>
+class ResetDescriptor : public ResetDescriptorBase
+{
+public:
+	ResetDescriptor(T& pin, const char* name)
+	: ResetDescriptorBase(name)
+	, m_pin(pin)
+	{}
+
+	virtual bool IsReady()
+	{ return true; }
+
+
+protected:
+	T& m_pin;
 };
 
 /**
 	@brief An active-low reset
  */
-class ActiveLowResetDescriptor : public ResetDescriptor
+template<class T = GPIOPin>
+class ActiveLowResetDescriptor : public ResetDescriptor<T>
 {
 public:
-	ActiveLowResetDescriptor(GPIOPin& pin, const char* name)
-	: ResetDescriptor(pin, name)
-	{ m_pin = 0; }	//don't use Assert() since it logs
-					//and we might not have the logger set up yet in global constructors
+	ActiveLowResetDescriptor(T& pin, const char* name)
+	: ResetDescriptor<T> (pin, name)
+	{
+		//Turn off immediately if it's a regular GPIO pin
+		//don't use Assert() since it logs
+		//and we might not have the logger set up yet in global constructors
+		if(std::is_same_v<T, GPIOPin>)
+			ResetDescriptor<T>::m_pin = 0;
+	}
 
 	virtual void Assert() override
 	{
-		g_log("Asserting %s reset\n", m_name);
-		m_pin = 0;
+		g_log("Asserting %s reset\n", ResetDescriptor<T>::m_name);
+		ResetDescriptor<T>::m_pin = 0;
 	}
 
 	virtual void Deassert() override
 	{
-		g_log("Releasing %s reset\n", m_name);
-		m_pin = 1;
+		g_log("Releasing %s reset\n", ResetDescriptor<T>::m_name);
+		ResetDescriptor<T>::m_pin = 1;
 	}
 };
 
 /**
 	@brief An active-low reset with a time delay
  */
-class ActiveLowResetDescriptorWithDelay : public ActiveLowResetDescriptor
+template<class T = GPIOPin>
+class ActiveLowResetDescriptorWithDelay : public ActiveLowResetDescriptor<T>
 {
 public:
-	ActiveLowResetDescriptorWithDelay(GPIOPin& pin, const char* name, Timer& timer, uint16_t delay)
-	: ActiveLowResetDescriptor(pin, name)
+	ActiveLowResetDescriptorWithDelay(T& pin, const char* name, Timer& timer, uint16_t delay)
+	: ActiveLowResetDescriptor<T>(pin, name)
 	, m_timer(timer)
 	, m_delay(delay)
 	, m_done(false)
@@ -98,8 +118,8 @@ public:
 
 	virtual void Deassert() override
 	{
-		g_log("Releasing %s reset\n", m_name);
-		m_pin = 1;
+		g_log("Releasing %s reset\n", ResetDescriptor<T>::m_name);
+		ResetDescriptor<T>::m_pin = 1;
 		m_done = false;
 		m_tstart = m_timer.GetCount();
 	}
@@ -130,11 +150,12 @@ protected:
 /**
 	@brief An active-low reset plus an active-high signal that's asserted when the device is operational
  */
-class ActiveLowResetDescriptorWithActiveHighDone : public ActiveLowResetDescriptor
+template<class T = GPIOPin>
+class ActiveLowResetDescriptorWithActiveHighDone : public ActiveLowResetDescriptor<T>
 {
 public:
-	ActiveLowResetDescriptorWithActiveHighDone(GPIOPin& rst, GPIOPin& done, const char* name)
-	: ActiveLowResetDescriptor(rst, name)
+	ActiveLowResetDescriptorWithActiveHighDone(T& rst, T& done, const char* name)
+	: ActiveLowResetDescriptor<T>(rst, name)
 	, m_done(done)
 	{}
 
@@ -142,17 +163,18 @@ public:
 	{ return m_done; }
 
 protected:
-	GPIOPin& m_done;
+	T& m_done;
 };
 
 /**
 	@brief An active-low reset plus an active-low signal that's asserted when the device is operational
  */
-class ActiveLowResetDescriptorWithActiveLowDone : public ActiveLowResetDescriptor
+template<class T = GPIOPin>
+class ActiveLowResetDescriptorWithActiveLowDone : public ActiveLowResetDescriptor<T>
 {
 public:
-	ActiveLowResetDescriptorWithActiveLowDone(GPIOPin& rst, GPIOPin& done, const char* name)
-	: ActiveLowResetDescriptor(rst, name)
+	ActiveLowResetDescriptorWithActiveLowDone(T& rst, T& done, const char* name)
+	: ActiveLowResetDescriptor<T>(rst, name)
 	, m_done(done)
 	{}
 
@@ -160,41 +182,48 @@ public:
 	{ return !m_done; }
 
 protected:
-	GPIOPin& m_done;
+	T& m_done;
 };
 
 /**
 	@brief An active-high reset
  */
-class ActiveHighResetDescriptor : public ResetDescriptor
+template<class T = GPIOPin>
+class ActiveHighResetDescriptor : public ResetDescriptor<T>
 {
 public:
-	ActiveHighResetDescriptor(GPIOPin& pin, const char* name)
-	: ResetDescriptor(pin, name)
-	{ m_pin = 1; }	//don't use Assert() since it logs
-					//and we might not have the logger set up yet in global constructors
+	ActiveHighResetDescriptor(T& pin, const char* name)
+	: ResetDescriptor<T>(pin, name)
+	{
+		//Turn off immediately if it's a regular GPIO pin
+		//don't use Assert() since it logs
+		//and we might not have the logger set up yet in global constructors
+		if(std::is_same_v<T, GPIOPin>)
+			ResetDescriptor<T>::m_pin = 1;
+	}
 
 	virtual void Assert() override
 	{
-		g_log("Asserting %s reset\n", m_name);
-		m_pin = 1;
+		g_log("Asserting %s reset\n", ResetDescriptor<T>::m_name);
+		ResetDescriptor<T>::m_pin = 1;
 	}
 
 	virtual void Deassert() override
 	{
-		g_log("Releasing %s reset\n", m_name);
-		m_pin = 0;
+		g_log("Releasing %s reset\n", ResetDescriptor<T>::m_name);
+		ResetDescriptor<T>::m_pin = 0;
 	}
 };
 
 /**
 	@brief An active-low reset with a time delay
  */
-class ActiveHighResetDescriptorWithDelay : public ActiveHighResetDescriptor
+template<class T = GPIOPin>
+class ActiveHighResetDescriptorWithDelay : public ActiveHighResetDescriptor<T>
 {
 public:
-	ActiveHighResetDescriptorWithDelay(GPIOPin& pin, const char* name, Timer& timer, uint16_t delay)
-	: ActiveHighResetDescriptor(pin, name)
+	ActiveHighResetDescriptorWithDelay(T& pin, const char* name, Timer& timer, uint16_t delay)
+	: ActiveHighResetDescriptor<T>(pin, name)
 	, m_timer(timer)
 	, m_delay(delay)
 	, m_done(false)
@@ -204,8 +233,8 @@ public:
 
 	virtual void Deassert() override
 	{
-		g_log("Releasing %s reset\n", m_name);
-		m_pin = 0;
+		g_log("Releasing %s reset\n", ResetDescriptor<T>::m_name);
+		ResetDescriptor<T>::m_pin = 0;
 		m_done = false;
 		m_tstart = m_timer.GetCount();
 	}

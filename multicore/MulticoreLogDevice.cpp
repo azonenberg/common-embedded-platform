@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2024-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -27,85 +27,56 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef TCA6424A_h
-#define TCA6424A_h
+#include <core/platform.h>
+#include <stm32.h>
+#include "MulticoreLogDevice.h"
 
-/**
-	@brief Wrapper for TCA6242A I/O expander
- */
-class TCA6424A
+#ifdef MULTICORE
+
+MulticoreLogDevice::MulticoreLogDevice()
 {
-public:
-	TCA6424A(I2C* i2c, uint8_t addr);
+	for(uint32_t i=0; i<NUM_SECONDARY_CORES; i++)
+	{
+		m_channels[i] = nullptr;
+		m_writePointers[i] = 0;
+		memset(m_txBuffers[i], 0, LOG_TXBUF_SIZE);
+	}
+}
 
-	void SetDirection(uint8_t chan, bool input);
-	void SetOutputValue(uint8_t chan, bool value);
-
-	void BatchUpdateValue(uint8_t block, uint8_t value)
-	{ m_outvals[block] = value; };
-
-	void BatchCommitValue();
-
-protected:
-
-	///@brief The I2C channel to sue
-	I2C* m_i2c;
-
-	///@brief Device I2C bus address
-	uint8_t m_address;
-
-	///@brief Port directions
-	uint8_t m_dirmask[3];
-
-	///@brief Output port values
-	uint8_t m_outvals[3];
-};
-
-/**
-	@brief GPIOPin esque wrapper for TCA6424A GPIO channels
- */
-class TCA6424A_GPIO
+void MulticoreLogDevice::PrintBinary(char ch)
 {
-public:
-	TCA6424A_GPIO(TCA6424A& parent, uint8_t channel)
-		: m_parent(parent)
-		, m_channel(channel)
-		, m_output(false)
-		, m_outputValue(false)
-	{}
+	auto nchan = GetCurrentCore();
+	auto& wptr = m_writePointers[nchan];
+	m_txBuffers[nchan][wptr] = ch;
+	wptr ++;
 
-	void SetDirection(bool input)
-	{
-		m_parent.SetDirection(m_channel, input);
-		m_output = !input;
-	}
+	//Flush log buffer when it fills up out of necessity
+	if(wptr == LOG_TXBUF_SIZE)
+		Flush();
 
-	void operator=(bool value)
-	{
-		m_parent.SetOutputValue(m_channel, value);
-		m_outputValue = value;
-	}
+	//Flush log buffer at end of line if we're pretty full
+	if( (ch == '\n') && (wptr > (LOG_TXBUF_SIZE - 128) ) )
+		Flush();
+}
 
-	operator bool()
-	{
-		if(m_output)
-			return m_outputValue;
+char MulticoreLogDevice::BlockingRead()
+{
+	return 0;
+}
 
-		//FIXME implement input code path
-		else
-			return false;
-	}
+void MulticoreLogDevice::Flush()
+{
+	//only flush the current core's log buffer to avoid potential races
+	auto nchan = GetCurrentCore();
+	auto& wptr = m_writePointers[nchan];
+	auto pchan = m_channels[nchan];
 
-protected:
-	TCA6424A& m_parent;
+	//Push to the IPC buffer
+	if(pchan && wptr)
+		pchan->GetSecondaryFifo().Push(reinterpret_cast<const uint8_t*>(m_txBuffers[nchan]), wptr);
 
-	uint8_t m_channel;
-
-	//Cached values for output readback
-	bool m_output;
-
-	//Most recently written value
-	bool m_outputValue;
-};
+	//and mark our local fifo as free
+	wptr = 0;
+}
 
 #endif

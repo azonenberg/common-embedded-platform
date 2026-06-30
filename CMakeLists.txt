@@ -28,6 +28,10 @@ if(NOT DEFINED CEP_BUILD_CLI)
   set(CEP_BUILD_CLI 0)
 endif()
 
+if(NOT DEFINED CEP_BUILD_MULTICORE)
+  set(CEP_BUILD_MULTICORE 0)
+endif()
+
 add_subdirectory(bootloader)
 add_subdirectory(core)
 
@@ -40,6 +44,7 @@ if(CEP_BUILD_SUPER)
 endif()
 
 if(CEP_BUILD_FPGA)
+	add_compile_definitions(CEP_BUILD_FPGA=1)
 	add_subdirectory(fpga)
 endif()
 
@@ -57,4 +62,8 @@ endif()
 
 if(CEP_BUILD_TCPIP)
 	add_subdirectory(tcpip)
+endif()
+
+if(CEP_BUILD_MULTICORE)
+	add_subdirectory(multicore)
 endif()

@@ -1,3 +1,9 @@
+#ifdef __aarch64__
+
+#else
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ARMv7-M version
+
 .thumb
 .syntax unified
 
@@ -44,3 +50,5 @@ DoBootApplication:
 //constant addresses
 .align 4
 pvtor:	.word 0xe000ed08
+
+#endif

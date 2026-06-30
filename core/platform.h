@@ -54,6 +54,11 @@ extern KVS* g_kvs;
 void __attribute__((noreturn)) Reset();
 void InitKVS(StorageBank* left, StorageBank* right, uint32_t logsize);
 void FormatBuildID(const uint8_t* buildID, char* strOut);
+void PrintCortexMInfo();
+
+#ifdef __aarch64__
+void PrintCortexAInfo();
+#endif
 
 //Returns true in bootloader, false in application firmware
 bool IsBootloader();
@@ -64,11 +69,25 @@ bool IsBootloader();
 
 #include "bsp.h"
 
-//All tasks
-extern etl::vector<Task*, MAX_TASKS>  g_tasks;
+//MULTI CORE flow
+#ifdef MULTICORE
 
-//Timer tasks (strict subset of total tasks)
-extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+	//TODO: per core max? for now set it to be global max
+
+	//All tasks
+	extern etl::vector<Task*, MAX_TASKS>  g_tasks[NUM_SECONDARY_CORES];
+
+	//Timer tasks (strict subset of total tasks), can only live on core 0 for now
+	extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+
+//SINGLE CORE flow
+#else
+	//All tasks
+	extern etl::vector<Task*, MAX_TASKS>  g_tasks;
+
+	//Timer tasks (strict subset of total tasks)
+	extern etl::vector<TimerTask*, MAX_TIMER_TASKS>  g_timerTasks;
+#endif
 
 //Helpers for FPGA interfacing
 void InitFPGA();
@@ -82,5 +101,12 @@ extern uint32_t g_usercode;
 extern LogSink<MAX_LOG_SINKS>* g_logSink;
 
 void __attribute__((noreturn)) DefaultMainLoop();
+
+//Callbacks for multicore init
+#ifdef MULTICORE
+extern "C" void hardware_init_hook();
+extern "C" void CoreInit(unsigned int core);
+extern "C" void CoreMain(unsigned int core);
+#endif
 
 #endif

@@ -27,85 +27,27 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef TCA6424A_h
-#define TCA6424A_h
+#ifndef LogFlushTask_h
+#define LogFlushTask_h
+
+#include <embedded-utils/CharacterDevice.h>
 
 /**
-	@brief Wrapper for TCA6242A I/O expander
+	@brief Task that flushes log buffers each iteration through the main loop
  */
-class TCA6424A
+class LogFlushTask : public Task
 {
 public:
-	TCA6424A(I2C* i2c, uint8_t addr);
-
-	void SetDirection(uint8_t chan, bool input);
-	void SetOutputValue(uint8_t chan, bool value);
-
-	void BatchUpdateValue(uint8_t block, uint8_t value)
-	{ m_outvals[block] = value; };
-
-	void BatchCommitValue();
-
-protected:
-
-	///@brief The I2C channel to sue
-	I2C* m_i2c;
-
-	///@brief Device I2C bus address
-	uint8_t m_address;
-
-	///@brief Port directions
-	uint8_t m_dirmask[3];
-
-	///@brief Output port values
-	uint8_t m_outvals[3];
-};
-
-/**
-	@brief GPIOPin esque wrapper for TCA6424A GPIO channels
- */
-class TCA6424A_GPIO
-{
-public:
-	TCA6424A_GPIO(TCA6424A& parent, uint8_t channel)
-		: m_parent(parent)
-		, m_channel(channel)
-		, m_output(false)
-		, m_outputValue(false)
+	LogFlushTask(CharacterDevice& target)
+		: m_target(target)
 	{}
 
-	void SetDirection(bool input)
-	{
-		m_parent.SetDirection(m_channel, input);
-		m_output = !input;
-	}
-
-	void operator=(bool value)
-	{
-		m_parent.SetOutputValue(m_channel, value);
-		m_outputValue = value;
-	}
-
-	operator bool()
-	{
-		if(m_output)
-			return m_outputValue;
-
-		//FIXME implement input code path
-		else
-			return false;
-	}
-
 protected:
-	TCA6424A& m_parent;
+	virtual void Iteration() override
+	{ m_target.Flush(); }
 
-	uint8_t m_channel;
-
-	//Cached values for output readback
-	bool m_output;
-
-	//Most recently written value
-	bool m_outputValue;
+	CharacterDevice& m_target;
 };
 
 #endif
+

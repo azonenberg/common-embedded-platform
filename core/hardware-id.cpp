@@ -29,16 +29,355 @@
 
 #include "platform.h"
 
+#ifdef HAVE_BSEC
+#include <peripheral/BSEC.h>
+#endif
+
+#ifdef HAVE_ICACHE
+#include <peripheral/ICACHE.h>
+#endif
+
+#ifdef HAVE_DCACHE
+#include <peripheral/DCACHE.h>
+#endif
+
 const char* GetStepping(uint16_t rev);
-const char* GetPartName(uint16_t device);
+const char* GetPartName(
+	#ifdef STM32MP2
+		uint32_t device
+	#else
+		uint16_t device
+	#endif
+);
 
 #ifdef HAVE_PKG
 const char* GetPackage(uint8_t pkg);
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Print info about an ARM CPU
+
+#ifdef __aarch64__
+
+void PrintCortexAInfo()
+{
+	auto midr = GetMIDR();
+
+	//63:32 res0
+
+	//31:24 vendor
+	const char* vendor = "(Unknown)";
+	switch( (midr >> 24) & 0xff)
+	{
+		case 0x41:
+			vendor = "ARM";
+			break;
+		default:
+			break;
+	}
+
+	uint8_t major = (midr >> 20) & 0xf;
+	uint8_t minor = midr & 0xf;
+
+	//19:16 architecture, we know we're aarch64 so ignore it
+
+	//15:4 is part number
+	const char* part = "(Unknown)";
+	switch((midr >> 4) & 0xfff)
+	{
+		case 0xd04:
+			part = "Cortex-A35";
+			break;
+	}
+
+	g_log("%s %s revision %d patch %d\n", vendor, part, major, minor);
+
+	LogIndenter li(g_log);
+
+	//Enumerate caches
+	auto clidr = GetCLIDR();
+	for(int i=0; i<7; i++)
+	{
+		auto cachetype = (clidr >> (3*i)) & 0x7;
+		if(cachetype == 0)
+			break;
+
+		auto ccsidr_du = GetCCSIDR(i << 1);
+		auto ccsidr_i = GetCCSIDR((i << 1) | 1);
+
+		//TODO: different format for FEAT_CCIDX
+		switch(cachetype)
+		{
+			case 1:
+				g_log("L%d instruction cache: %d sets, %d-way associative, %d bytes per line\n",
+					i+1,
+					((ccsidr_i >> 13) & 0x7fff) + 1,
+					((ccsidr_i & 0x1ff8) >> 3) + 1,
+					16 << (ccsidr_i & 7));
+				break;
+
+			case 2:
+				g_log("L%d data cache: %d sets, %d-way associative, %d bytes per line\n",
+					i+1,
+					((ccsidr_du >> 13) & 0x7fff) + 1,
+					((ccsidr_du & 0x1ff8) >> 3) + 1,
+					16 << (ccsidr_du & 7));
+				break;
+
+			case 3:
+				g_log("L%d I/D cache\n", i+1);
+				{
+					LogIndenter li2(g_log);
+					g_log("Instruction cache: %d sets, %d-way associative, %d bytes per line\n",
+						((ccsidr_i >> 13) & 0x7fff) + 1,
+						((ccsidr_i & 0x1ff8) >> 3) + 1,
+						16 << (ccsidr_i & 7));
+					g_log("Data cache: %d sets, %d-way associative, %d bytes per line\n",
+						((ccsidr_du >> 13) & 0x7fff) + 1,
+						((ccsidr_du & 0x1ff8) >> 3) + 1,
+						16 << (ccsidr_du & 7));
+				}
+				break;
+
+			case 4:
+				g_log("L%d unified cache: %d sets, %d-way associative, %d bytes per line\n",
+					i+1,
+					((ccsidr_du >> 13) & 0x7fff) + 1,
+					((ccsidr_du & 0x1ff8) >> 3) + 1,
+					16 << (ccsidr_du & 7));
+				break;
+		}
+	}
+	auto innerBoundary = (clidr >> 30) & 7;
+	if(innerBoundary != 0)
+		g_log("L%d cache is the highest inner cacheable\n", innerBoundary);
+
+	//TODO: print info from CTR_EL0
+}
+
+//#elseif defined(__arm__)
+#else
+
+void PrintCortexMInfo()
+{
+	const char* vendor = "(Unknown)";
+	switch(SCB.CPUID >> 24)
+	{
+		case 0x41:
+			vendor = "ARM";
+			break;
+		default:
+			break;
+	}
+
+	uint32_t major = (SCB.CPUID >> 20) & 0xf;
+	uint32_t minor = SCB.CPUID & 0xf;
+
+	const char* part = "(Unknown)";
+	switch((SCB.CPUID >> 4) & 0xfff)
+	{
+		case 0xc24:
+			part = "Cortex-M4";
+			break;
+
+		case 0xc27:
+			part = "Cortex-M7";
+			break;
+
+		case 0xd21:
+			part = "Cortex-M33";
+			break;
+	}
+
+	//not currently in linker script
+	uint32_t revidr = *reinterpret_cast<uint32_t*>(0xe000ecfc);
+
+	g_log("%s %s revision %d patch %d rev %d\n", vendor, part, major, minor, revidr);
+
+	LogIndenter li(g_log);
+	uint32_t ras = (SCB.ID_PFR0 >> 28);
+	uint32_t state1 = (SCB.ID_PFR0 >> 4) & 0xf;
+	g_log("RAS extension: %s\n", (ras == 2) ? "version 1" : "not available");
+	g_log("ID_AFR0:       %08x\n", SCB.ID_AFR0);
+	g_log("ID_DFR0:       %08x\n", SCB.ID_DFR0);
+	g_log("PACBTI:        %x\n", (SCB.ID_ISAR[5] >> 20) & 0xf);
+	g_log("MPU aux ctl:   %s\n", ((SCB.ID_MMFR[0] >> 20) & 0xf) == 1 ? "available" : "not available");
+	g_log("TCM:           %s\n", ((SCB.ID_MMFR[0] >> 16) & 0xf) == 1 ? "available" : "not available");
+	g_log("CLIDR:         %08x\n", SCB.CLIDR);
+	g_log("CTR:           %08x\n", SCB.CTR);
+	//don't bother printing T32/A32 flags
+
+	//TODO: check FPU and whatever else
+}
+
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Print identifying hardware info
 
+#ifdef STM32MP2
+
+void PrintFuseInfo();
+void PrintIcacheInfo();
+void PrintDcacheInfo();
+
+//MP2 has completely different efuse based identification scheme
+void __attribute__((weak)) BSP_DetectHardware()
+{
+	g_log("Identifying hardware\n");
+	LogIndenter li(g_log);
+
+	//Check boot mode
+	#ifdef STM32MP2_CPU2
+		uint32_t thisCPU = 2;
+	#else
+		uint32_t thisCPU = 1;
+	#endif
+	uint32_t bootCPU = 0;
+	const char* bootMode = "(unknown)";
+	switch(SYSCFG.BOOTSR)
+	{
+		//Development boot: CPU1 is boot CPU
+		case BOOT_MODE_DEV1:
+		case BOOT_MODE_DEV2:
+			bootMode = "development";
+			bootCPU = 1;
+			break;
+
+		//M33-TD modes
+		case BOOT_MODE_M33TD_SPI:
+			bootMode = "M33-TD from SPI flash";
+			bootCPU = 2;
+			break;
+
+		default:
+			break;
+	}
+	g_log("Boot mode: 0x%x (%s)\n", SYSCFG.BOOTSR, bootMode);
+
+	#ifdef STM32MP2_CPU1
+		g_log("Running on CPU1\n");
+		PrintCortexAInfo();
+	#endif
+
+	#ifdef STM32MP2_CPU2
+		g_log("Running on CPU2\n");
+		{
+			LogIndenter li2(g_log);
+			PrintCortexMInfo();
+			PrintIcacheInfo();
+			PrintDcacheInfo();
+		}
+	#endif
+
+	if(thisCPU == bootCPU)
+		PrintFuseInfo();
+}
+
+void PrintIcacheInfo()
+{
+	#ifdef HAVE_ICACHE
+		g_log("External AHB L1 instruction cache present\n");
+		LogIndenter li(g_log);
+
+		g_log("Cache IPIDR 0x%08x, version %d.%d\n",
+			_ICACHE.IPIDR,
+			(_ICACHE.VERR >> 4) & 0xf,
+			_ICACHE.VERR & 0xf);
+		g_log("ECC available:    %s\n", (_ICACHE.HWCFGR & ICACHE_HWCFGR_ECC) ? "yes" : "no");
+		g_log("AHBS interface:   %d bits\n", ICACHE::GetAHBSWidth());
+		g_log("AHBM1 interface:  %d bits\n", ICACHE::GetAHBM1Width());
+		g_log("AHBM2 interface:  %d bits\n", ICACHE::GetAHBM2Width());
+		g_log("Remap capability: %d regions of %d MB\n", ICACHE::GetRemapRegions(), ICACHE::GetRemapRegionSize());
+		g_log("Line width:       %d bytes\n", ICACHE::GetCacheLineWidth());
+		g_log("Cache size:       %d kB\n", ICACHE::GetCacheSize());
+		g_log("Associativity:    %d way\n", ICACHE::GetNumWays());
+		g_log("Current status:   %s\n", ICACHE::IsEnabled() ? "enabled" : "disabled");
+		g_log("Hits:             %u\n", ICACHE::PerfGetHitCount());
+		g_log("Misses:           %u\n", ICACHE::PerfGetMissCount());
+	#endif
+}
+
+void PrintDcacheInfo()
+{
+	#ifdef HAVE_DCACHE
+		g_log("External AHB L1 data cache present\n");
+		LogIndenter li(g_log);
+
+		g_log("Cache IPIDR 0x%08x, version %d.%d\n",
+			_DCACHE.IPIDR,
+			(_DCACHE.VERR >> 4) & 0xf,
+			_DCACHE.VERR & 0xf);
+		g_log("ECC available:    %s\n", (_DCACHE.HWCFGR & DCACHE_HWCFGR_ECC) ? "yes" : "no");
+		g_log("AHBM interface:   %d bits\n", DCACHE::GetAHBMWidth());
+		g_log("Line width:       %d bytes\n", DCACHE::GetCacheLineWidth());
+		g_log("Cache size:       %d kB\n", DCACHE::GetCacheSize());
+		g_log("Associativity:    %d way\n", DCACHE::GetNumWays());
+		g_log("Current status:   %s\n", DCACHE::IsEnabled() ? "enabled" : "disabled");
+		g_log("Read hits:        %u\n", DCACHE::PerfGetReadHitCount());
+		g_log("Read misses:      %u\n", DCACHE::PerfGetReadMissCount());
+		g_log("Write hits:       %u\n", DCACHE::PerfGetWriteHitCount());
+		g_log("Write misses:     %u\n", DCACHE::PerfGetWriteMissCount());
+	#endif
+}
+
+void PrintFuseInfo()
+{
+	g_log("We are boot CPU, printing fuse information\n");
+	LogIndenter li(g_log);
+
+	//Turn on the fuse block since all of the MP2 config is in fuses
+	RCCHelper::Enable(&_BSEC);
+
+	if(BSEC::ReadFuse(BSEC_VIRGIN) == 0)
+		g_log(Logger::ERROR, "OTP_HW_WORD0 is zero, expected nonzero value (access issue?)\n");
+
+	const char* part = GetPartName(BSEC::ReadFuse(BSEC_RPN));
+	uint32_t rev_id = BSEC::ReadFuse(BSEC_REV_ID) & 0x1f;
+	auto pkg = GetPackage(BSEC::ReadFuse(BSEC_PKG) & 7);
+	g_log("STM32%s stepping %d, %s\n", part, rev_id, pkg);
+
+	//TODO: read DBGMCU ID code properly
+	uint32_t dbgmcu_idc = *reinterpret_cast<volatile uint32_t*>(0x4a010000);
+	g_log("Device ID: %04x rev %04x\n", dbgmcu_idc & 0xfff, dbgmcu_idc >> 16);
+
+	g_log("oem_fsbla_monotonic_counter = %08x\n", BSEC::ReadFuse(BSEC_FSBLA_COUNT));
+	if(BSEC::ReadFuse(BSEC_BOOTROM_CONFIG_7) & 0x10)
+		g_log("FSBL-A is AARCH32\n");
+	else
+		g_log("FSBL-A is AARCH64\n");
+	/*_BSEC.OTPCR = 18;
+	if(_BSEC.FVR[18] & 0xf)
+		g_log("Secure boot active (CLOSED_LOCKED)\n");
+	else
+		g_log("Secure boot disabled (CLOSED_UNLOCKED)\n");
+	*/
+
+	uint32_t U_ID[3] =
+	{
+		BSEC::ReadFuse(BSEC_ID_0),
+		BSEC::ReadFuse(BSEC_ID_1),
+		BSEC::ReadFuse(BSEC_ID_2)
+	};
+	uint16_t waferX = U_ID[0] >> 16;
+	uint16_t waferY = U_ID[0] & 0xffff;
+	uint8_t waferNum = U_ID[1] & 0xff;
+
+	char waferLot[8] =
+	{
+		static_cast<char>((U_ID[1] >> 8) & 0xff),
+		static_cast<char>((U_ID[1] >> 16) & 0xff),
+		static_cast<char>((U_ID[1] >> 24) & 0xff),
+		static_cast<char>((U_ID[2] >> 0) & 0xff),
+		static_cast<char>((U_ID[2] >> 8) & 0xff),
+		static_cast<char>((U_ID[2] >> 16) & 0xff),
+		static_cast<char>((U_ID[2] >> 24) & 0xff),
+		'\0'
+	};
+	g_log("Lot %s, wafer %d, die (%d, %d)\n", waferLot, waferNum, waferX, waferY);
+}
+
+#else
 void __attribute__((weak)) BSP_DetectHardware()
 {
 	g_log("Identifying hardware\n");
@@ -119,6 +458,7 @@ void __attribute__((weak)) BSP_DetectHardware()
 	#endif
 	g_log("Lot %s, wafer %d, die (%d, %d)\n", waferLot, waferNum, waferX, waferY);
 }
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Crack device IDs
@@ -126,7 +466,6 @@ void __attribute__((weak)) BSP_DetectHardware()
 #ifdef HAVE_PKG
 const char* GetPackage(uint8_t pkg)
 {
-	//For now, this is STM32H735 specific
 	#ifdef STM32H735
 		switch(pkg)
 		{
@@ -143,6 +482,16 @@ const char* GetPackage(uint8_t pkg)
 			case 10:	return "LQFP176 (industrial)";
 			default:	return "unknown package";
 		}
+	#elif defined(STM32MP2)
+		switch(pkg)
+		{
+			case 0:		return "Custom";
+			case 1:		return "TFBGA361 (10x10 mm)";
+			case 3:		return "TFBGA424";
+			case 5:		return "TFBGA436";
+			case 7:		return "TFBGA361 (16x16mm)";
+			default:	return "reserved/unknown package";
+		}
 	#elif defined(STM32H750)
 		switch(pkg)
 		{
@@ -156,7 +505,7 @@ const char* GetPackage(uint8_t pkg)
 }
 #endif
 
-const char* GetStepping(uint16_t rev)
+const char* GetStepping([[maybe_unused]] uint16_t rev)
 {
 	#if defined(STM32L4)	//L431
 		switch(rev)
@@ -197,7 +546,13 @@ const char* GetStepping(uint16_t rev)
 	return "(unknown)";
 }
 
-const char* GetPartName([[maybe_unused]] uint16_t device)
+const char* GetPartName(
+	#ifdef STM32MP2
+		[[maybe_unused]] uint32_t device
+	#else
+		[[maybe_unused]] uint16_t device
+	#endif
+	)
 {
 	#ifdef STM32L4
 		switch(device)
@@ -233,6 +588,28 @@ const char* GetPartName([[maybe_unused]] uint16_t device)
 			'\0'
 		};
 		return id;
+
+	#elif defined(STM32MP2)
+		switch(device)
+		{
+			case 0x0000'2000:	return "MP257C";
+			case 0x0008'2000:	return "MP255C";
+			case 0x000b'300c:	return "MP253C";
+			case 0x000b'306d:	return "MP251C";
+			case 0x4000'2e00:	return "MP257A";
+			case 0x4008'2e00:	return "MP255A";
+			case 0x400b'3e0c:	return "MP253A";
+			case 0x400b'3e6d:	return "MP251A";
+			case 0x8000'2000:	return "MP257F";
+			case 0x8008'2000:	return "MP255F";
+			case 0x800b'300c:	return "MP253F";
+			case 0x800b'306d:	return "MP251F";
+			case 0xc000'2e00:	return "MP257D";
+			case 0xc008'2e00:	return "MP255D";
+			case 0xc00b'3e0c:	return "MP253D";
+			case 0xc00b'3e6d:	return "MP251D";
+			default:			return "(unknown)";
+		}
 	#endif
 
 	//if we get here, unrecognized

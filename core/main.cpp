@@ -44,31 +44,51 @@ KVS* g_kvs = nullptr;
 ///@brief Global log sink object
 LogSink<MAX_LOG_SINKS>* g_logSink = nullptr;
 
-//called by newlib
+//called by newlib on arm targets and MulticoreStartup.S on aarch64 targets
 extern "C" void hardware_init_hook();
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Application entry point
+//called by newlib during initialization
+#ifdef __aarch64__
+extern "C" void _init();
+extern "C" void _init()
+{
+	hardware_init_hook();
+}
+#endif
 
 extern "C" void hardware_init_hook()
 {
 	//Enable caches, if we have them
-	#ifdef HAVE_L1
+	//This code path is only used on Cortex-M targets
+	#if defined(HAVE_L1) && !defined(__aarch64__)
+		//(this only works for internal Cortex-M caches, others are handled separately)
 		InvalidateInstructionCache();
 		InvalidateDataCache();
 		EnableInstructionCache();
 		EnableDataCache();
 	#endif
 
+	//Enable all memories we might be using for globals
+	BSP_InitMemory();
+
 	//Copy .data from flash to SRAM (for some reason the default newlib startup won't do this??)
-	memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
+	//But only if this is a flash image!
+	//If we're executing out of RAM .data is writable and initialized out of the gate
+	#ifndef RAM_IMAGE
+		memcpy(&__data_start, &__data_romstart, &__data_end - &__data_start + 1);
+	#endif
 
 	//Copy ITCM code from flash to SRAM (if we have it)
 	#ifdef HAVE_ITCM
 		memcpy(&__itcm_start, &__itcm_romstart, &__itcm_end - &__itcm_start + 1);
 	#endif
 
-	asm("dsb");
+	#ifdef __aarch64__
+		asm("dsb st");
+	#else
+		asm("dsb");
+	#endif
+
 	asm("isb");
 
 	//Initialize the floating point unit
@@ -76,6 +96,79 @@ extern "C" void hardware_init_hook()
 		SCB.CPACR |= ((3UL << 20U)|(3UL << 22U));
 	#endif
 }
+
+#ifdef MULTICORE
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Application entry point
+
+void CoreInit(unsigned int core)
+{
+	//Re-enable interrupts since the bootloader (if used) may have turned them off
+	//EnableInterrupts();
+
+	//Hardware setup on core 0
+	if(core == 0)
+	{
+		BSP_InitPower();
+		BSP_InitClocks();
+		BSP_InitUART();
+		BSP_InitLog();
+		g_log("Logging ready\n");
+		BSP_DetectHardware();
+
+		//Do any other late initialization
+		BSP_Init();
+	}
+
+	//For now, nothing on other cores
+}
+
+void CoreMain(unsigned int core)
+{
+	g_log("Total tasks: %d of %d slots\n", g_tasks[core].size(), g_tasks[core].capacity());
+	if(core == 0)
+		g_log("Timer tasks: %d of %d slots\n", g_timerTasks.size(), g_timerTasks.capacity());
+	g_log("Ready\n");
+
+	//First core runs timer tasks and non-task stuff
+	if(core == 0)
+	{
+		while(1)
+		{
+			//Check for overflows on our timer
+			const int logTimerMax = 60000;
+			if(g_log.UpdateOffset(logTimerMax))
+			{
+				for(auto t : g_timerTasks)
+					t->OnTimerShift(logTimerMax);
+			}
+
+			//Run all of our regular tasks
+			for(auto t : g_tasks[core])
+				t->Iteration();
+
+			//Run any non-task stuff
+			BSP_MainLoopIteration();
+		}
+	}
+
+	//Other core(s) just run tasks
+	else
+	{
+		while(1)
+		{
+			//Run all of our regular tasks
+			for(auto t : g_tasks[core])
+				t->Iteration();
+		}
+	}
+}
+
+#else
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Application entry point
 
 int main()
 {
@@ -106,7 +199,7 @@ int main()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Global helper functions
+// Default main loop
 
 void __attribute__((noreturn)) Reset()
 {
@@ -148,34 +241,23 @@ void __attribute__((noreturn)) DefaultMainLoop()
 	}
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// BSP functions (weak dummy implementations, expected to be overridden by application FW)
+#endif
 
-void __attribute__((weak)) BSP_InitPower()
-{
-}
-
-void __attribute__((weak)) BSP_InitClocks()
-{
-}
-
-void __attribute__((weak)) BSP_InitUART()
-{
-}
-
-void __attribute__((weak)) BSP_InitLog()
-{
-}
-
-void __attribute__((weak)) BSP_Init()
-{
-}
-
-void __attribute__((weak)) BSP_MainLoopIteration()
-{
-}
+#ifndef __aarch64__
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Global helper functions
+
+void __attribute__((noreturn)) Reset()
+{
+	SCB.AIRCR = 0x05fa0004;
+	while(1)
+	{}
+}
+
+#endif
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helpers for determining which mode the firmware was built in
 
 bool __attribute__((weak)) IsBootloader()

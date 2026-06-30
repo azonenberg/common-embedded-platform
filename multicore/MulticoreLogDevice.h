@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2025 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2024-2025 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -27,85 +27,46 @@
 *                                                                                                                      *
 ***********************************************************************************************************************/
 
-#ifndef TCA6424A_h
-#define TCA6424A_h
+#ifndef MulticoreLogDevice_h
+#define MulticoreLogDevice_h
+
+#ifdef MULTICORE
+
+#ifndef LOG_TXBUF_SIZE
+#define LOG_TXBUF_SIZE 256
+#endif
+
+#include "IPCDescriptorTable.h"
 
 /**
-	@brief Wrapper for TCA6242A I/O expander
+	@brief Log device that logs to one of several IPC descriptor tables depending on the current core ID
  */
-class TCA6424A
+class MulticoreLogDevice : public CharacterDevice
 {
 public:
-	TCA6424A(I2C* i2c, uint8_t addr);
+	MulticoreLogDevice();
 
-	void SetDirection(uint8_t chan, bool input);
-	void SetOutputValue(uint8_t chan, bool value);
+	void LookupChannel(uint32_t i, const char* name)
+	{
+		if(i < NUM_SECONDARY_CORES)
+			m_channels[i] = g_ipcDescriptorTable.FindChannel(name);
+	}
 
-	void BatchUpdateValue(uint8_t block, uint8_t value)
-	{ m_outvals[block] = value; };
-
-	void BatchCommitValue();
+	virtual void PrintBinary(char ch) override;
+	virtual char BlockingRead() override;
+	virtual void Flush() override;
 
 protected:
 
-	///@brief The I2C channel to sue
-	I2C* m_i2c;
+	///@brief The IPC channels to the other core
+	IPCDescriptorChannel* m_channels[NUM_SECONDARY_CORES];
 
-	///@brief Device I2C bus address
-	uint8_t m_address;
+	///@brief FIFOs for accumulating log data we haven't yet pushed to the other core
+	char m_txBuffers[NUM_SECONDARY_CORES][LOG_TXBUF_SIZE];
 
-	///@brief Port directions
-	uint8_t m_dirmask[3];
-
-	///@brief Output port values
-	uint8_t m_outvals[3];
+	///@brief Write pointers
+	uint32_t m_writePointers[NUM_SECONDARY_CORES];
 };
 
-/**
-	@brief GPIOPin esque wrapper for TCA6424A GPIO channels
- */
-class TCA6424A_GPIO
-{
-public:
-	TCA6424A_GPIO(TCA6424A& parent, uint8_t channel)
-		: m_parent(parent)
-		, m_channel(channel)
-		, m_output(false)
-		, m_outputValue(false)
-	{}
-
-	void SetDirection(bool input)
-	{
-		m_parent.SetDirection(m_channel, input);
-		m_output = !input;
-	}
-
-	void operator=(bool value)
-	{
-		m_parent.SetOutputValue(m_channel, value);
-		m_outputValue = value;
-	}
-
-	operator bool()
-	{
-		if(m_output)
-			return m_outputValue;
-
-		//FIXME implement input code path
-		else
-			return false;
-	}
-
-protected:
-	TCA6424A& m_parent;
-
-	uint8_t m_channel;
-
-	//Cached values for output readback
-	bool m_output;
-
-	//Most recently written value
-	bool m_outputValue;
-};
-
+#endif
 #endif
