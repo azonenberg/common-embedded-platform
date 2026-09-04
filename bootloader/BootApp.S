@@ -8,6 +8,7 @@
 .syntax unified
 
 .globl DoBootApplication
+.type DoBootApplication, %function
 DoBootApplication:
 
 	//Barriers to make sure pending stuff has committed
