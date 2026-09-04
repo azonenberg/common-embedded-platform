@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -36,7 +36,10 @@
 
 //Addresses for power supply stuff on the management I2C bus
 const uint8_t g_tempI2cAddress = 0x90;
+
+#ifndef NO_IBC
 const uint8_t g_ibcI2cAddress = 0x42;
+#endif
 
 #ifdef HAVE_ADC
 ///@brief The ADC (can't be initialized before InitClocks() so can't be a global object)
@@ -46,9 +49,11 @@ ADC* g_adc = nullptr;
 ///@brief Chip select pin for our SPI peripheral
 GPIOPin* g_spiCS = nullptr;
 
+#ifndef NO_IBC
 //IBC version strings
 char g_ibcSwVersion[20] = {0};
 char g_ibcHwVersion[20] = {0};
+#endif
 
 ///@brief Our firmware version string
 char g_version[20] = {0};

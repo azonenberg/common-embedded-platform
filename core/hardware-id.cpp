@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024-2025 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2024-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -196,7 +196,7 @@ void PrintCortexMInfo()
 
 	LogIndenter li(g_log);
 	uint32_t ras = (SCB.ID_PFR0 >> 28);
-	uint32_t state1 = (SCB.ID_PFR0 >> 4) & 0xf;
+	//uint32_t state1 = (SCB.ID_PFR0 >> 4) & 0xf;
 	g_log("RAS extension: %s\n", (ras == 2) ? "version 1" : "not available");
 	g_log("ID_AFR0:       %08x\n", SCB.ID_AFR0);
 	g_log("ID_DFR0:       %08x\n", SCB.ID_DFR0);

@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -44,13 +44,7 @@
 #include <bootloader/bootloader-common.h>
 #include <bootloader/BootloaderAPI.h>
 
-//TODO: fix this path somehow?
-#include "../../../common-ibc/firmware/main/regids.h"
-
 extern char g_version[20];
-extern char g_ibcSwVersion[20];
-extern char g_ibcHwVersion[20];
-
 extern const uint8_t g_tempI2cAddress;
 extern const uint8_t g_ibcI2cAddress;
 
@@ -58,7 +52,6 @@ extern I2C g_i2c;
 
 void Super_Init();
 void Super_InitI2C();
-void Super_InitIBC();
 
 #ifdef HAVE_ADC
 extern ADC* g_adc;
@@ -72,6 +65,17 @@ extern GPIOPin* g_spiCS;
 
 extern volatile BootloaderBBRAM* g_bbram;
 
+#ifndef NO_IBC
+
+//TODO: fix this path somehow?
+#include "../../../common-ibc/firmware/main/regids.h"
+
+void Super_InitIBC();
+bool PollIBCSensors();
+
+extern char g_ibcSwVersion[20];
+extern char g_ibcHwVersion[20];
+
 extern uint16_t g_ibcTemp;
 extern uint16_t g_ibc3v3;
 extern uint16_t g_ibcMcuTemp;
@@ -80,9 +84,9 @@ extern uint16_t g_vout12;
 extern uint16_t g_voutsense;
 extern uint16_t g_iin;
 extern uint16_t g_iout;
+#endif
+
 extern uint16_t g_3v3Voltage;
 extern uint16_t g_mcutemp;
-
-bool PollIBCSensors();
 
 #endif

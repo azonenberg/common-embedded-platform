@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -29,6 +29,8 @@
 
 #include "supervisor-common.h"
 #include "IBCRegisterReader.h"
+
+#ifndef NO_IBC
 
 /**
 	@brief Nonblocking read of a register from the IBC
@@ -85,3 +87,5 @@ bool IBCRegisterReader::ReadRegisterNonblocking(uint8_t regid, uint16_t& regval)
 
 	return false;
 }
+
+#endif

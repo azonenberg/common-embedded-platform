@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024-2025 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2024-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -196,16 +196,6 @@ int main()
 
 	//never get here
 	return 0;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Default main loop
-
-void __attribute__((noreturn)) Reset()
-{
-	SCB.AIRCR = 0x05fa0004;
-	while(1)
-	{}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
