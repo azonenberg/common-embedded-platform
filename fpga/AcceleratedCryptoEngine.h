@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -29,6 +29,9 @@
 
 #ifndef AcceleratedCryptoEngine_h
 #define AcceleratedCryptoEngine_h
+
+//some crypto engine stuff currently lives in staticnet so we need that to build
+#ifdef CEP_BUILD_TCPIP
 
 #include <staticnet/drivers/stm32/STM32CryptoEngine.h>
 #include <APB_Curve25519.h>
@@ -70,5 +73,7 @@ protected:
 
 	void PrintBlock(const char* keyname, const uint8_t* key);
 };
+
+#endif
 
 #endif

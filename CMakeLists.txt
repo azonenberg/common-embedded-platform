@@ -32,6 +32,10 @@ if(NOT DEFINED CEP_BUILD_MULTICORE)
   set(CEP_BUILD_MULTICORE 0)
 endif()
 
+if(CEP_BUILD_TCPIP)
+	add_compile_definitions(CEP_BUILD_TCPIP=1)
+endif()
+
 add_subdirectory(bootloader)
 add_subdirectory(core)
 

@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -29,6 +29,8 @@
 
 #ifndef FPGAFirmwareUpdater_h
 #define FPGAFirmwareUpdater_h
+
+#ifdef CEP_BUILD_TCPIP
 
 #define BIT_RX_BUFFER_SIZE 4096
 
@@ -95,4 +97,5 @@ protected:
 
 extern APB_SpiFlashInterface* g_fpgaFlash;
 
+#endif
 #endif

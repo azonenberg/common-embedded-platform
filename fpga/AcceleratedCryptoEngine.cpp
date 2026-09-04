@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -26,6 +26,8 @@
 * POSSIBILITY OF SUCH DAMAGE.                                                                                          *
 *                                                                                                                      *
 ***********************************************************************************************************************/
+
+#ifdef CEP_BUILD_TCPIP
 
 #include <core/platform.h>
 #include "AcceleratedCryptoEngine.h"
@@ -431,3 +433,5 @@ void AcceleratedCryptoEngine::SignExchangeHash(uint8_t* sigOut, uint8_t* exchang
 	g_log("AcceleratedCryptoEngine::SignExchangeHash (FPGA acceleration): %d.%d ms\n", delta/10, delta%10);
 	#endif
 }
+
+#endif

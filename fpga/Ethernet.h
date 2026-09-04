@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2023-2024 Andrew D. Zonenberg and contributors                                                         *
+* Copyright (c) 2023-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -30,6 +30,8 @@
 #ifndef CEP_FPGA_Ethernet_h
 #define CEP_FPGA_Ethernet_h
 
+#ifdef CEP_BUILD_TCPIP
+
 #include <APB_GPIO.h>
 #include <APB_MDIO.h>
 
@@ -51,4 +53,5 @@ extern volatile APB_EthernetRxBuffer FETHRX;
 //to be provided by application code
 void RegisterProtocolHandlers(IPv4Protocol& ipv4);
 
+#endif
 #endif
