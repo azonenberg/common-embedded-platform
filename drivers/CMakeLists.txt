@@ -1,4 +1,5 @@
 add_library(common-embedded-platform-drivers STATIC
+	PDIEinkDisplay.cpp
 	TCA6424A.cpp
 	VSC8512.cpp
 	)
