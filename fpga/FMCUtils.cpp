@@ -58,7 +58,7 @@ void InitFMCForFPGA()
 	fmc.SetMemoryType(FMC_BCR_TYPE_PSRAM);
 	fmc.SetAddressDataMultiplex();
 
-	//Enable wait states wiath NWAIT active during the wait
+	//Enable wait states with NWAIT active during the wait
 	fmc.EnableSynchronousWaitStates();
 	fmc.SetEarlyWaitState(false);
 
