@@ -282,8 +282,13 @@ public:
 
 	float GetVoltage()
 	{
-		return m_scale * g_adc->ReadChannelScaledAveraged(m_adcChannel, m_navg, m_vdd);
+		m_lastVoltage = m_scale * g_adc->ReadChannelScaledAveraged(m_adcChannel, m_navg, m_vdd);
+		return m_lastVoltage;
 	}
+
+	//Get the last voltage seen without querying the ADC
+	float PeekVoltage()
+	{ return m_lastVoltage; }
 
 	int m_adcChannel;
 	float m_vmin;
@@ -291,6 +296,8 @@ public:
 	float m_scale;
 	float m_vdd;
 	int m_navg;
+
+	float m_lastVoltage;
 };
 
 #endif
