@@ -36,6 +36,8 @@ typedef SPI<256, 32> DisplaySPIType;
 	@brief PDIEinkDisplay controller
 
 	(this is a task so it can do self-timed refresh operations)
+
+	For now, this only supports the 2.13" fast refresh B&W panel
  */
 class PDIEinkDisplay : public Task
 {
@@ -62,6 +64,12 @@ public:
 
 	//derived class must override this with board specific hook
 	virtual uint8_t GetBoardTempC() =0;
+
+	uint16_t GetWidth()
+	{ return 212; }
+
+	uint16_t GetHeight()
+	{ return 104; }
 
 protected:
 	void LineLow(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);

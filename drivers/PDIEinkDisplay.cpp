@@ -419,7 +419,8 @@ static const CharacterCell8x15 g_bitmapFont8x16[256] __attribute__((section(".ro
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Construction / destruction
 
-PDIEinkDisplay::PDIEinkDisplay(DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst)
+PDIEinkDisplay::PDIEinkDisplay(
+	DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs_n, GPIOPin* dc, GPIOPin* rst)
 	: m_spi(spi)
 	, m_busy_n(busy_n)
 	, m_cs_n(cs_n)
@@ -437,29 +438,31 @@ PDIEinkDisplay::PDIEinkDisplay(DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs
 
 	//Reset the display, need 5ms between each cycle
 	*m_rst_n = 1;
-	g_logTimer.Sleep(500);
+	g_logTimer.Sleep(50);
 	*m_rst_n = 0;
-	g_logTimer.Sleep(500);
+	g_logTimer.Sleep(100);
 	*m_rst_n = 1;
-	g_logTimer.Sleep(500);
+	g_logTimer.Sleep(200);
 
-	//wait for busy to clear
+	//verify not busy
+	if(!m_busy_n)
+		g_log(Logger::WARNING, "display still busy 20ms after reset\n");
 
 	//Soft reset
+	g_log("Reset\n");
 	SendCommand(0x00);
 	SendData(0x0e);
 	g_logTimer.Sleep(500);
 
-	//Clear both bitplanes to blank
-	Clear();
+	//Clear image to blank
 	Clear();
 
 	//Read the OTP data
 	g_log("Reading OTP...\n");
+	g_log.Flush();
 	g_logTimer.Sleep(500);
 	LogIndenter li(g_log);
 	SendCommand(0xa2);
-	g_logTimer.Sleep(500);
 	ReadData();	//dummy cycle before valid data
 	int activeBank = 0;
 	for(int i=0; ; i++)
@@ -473,8 +476,6 @@ PDIEinkDisplay::PDIEinkDisplay(DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs
 				activeBank = 0;
 			else
 				activeBank = 1;
-
-			g_log("Active OTP bank = %d\n", activeBank);
 		}
 
 		if(i == 0xc00)
@@ -491,10 +492,9 @@ PDIEinkDisplay::PDIEinkDisplay(DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs
 
 		if(activeBank == 0)
 		{
-			//seems there's an off-by-one where we count bytes since the 0xa5, so a5 isn't zero?
-			if(i == 0xb1c)
+			if(i == 0xb1b)
 				m_psr0 = ret;
-			if(i == 0xb1d)
+			if(i == 0xb1c)
 			{
 				m_psr1 = ret;
 				break;
@@ -503,9 +503,9 @@ PDIEinkDisplay::PDIEinkDisplay(DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs
 
 		else if(activeBank == 1)
 		{
-			if(i == 0x171c)
+			if(i == 0x171b)
 				m_psr0 = ret;
-			if(i == 0x171d)
+			if(i == 0x171c)
 			{
 				m_psr1 = ret;
 				break;
@@ -513,11 +513,7 @@ PDIEinkDisplay::PDIEinkDisplay(DisplaySPIType* spi, GPIOPin* busy_n, GPIOPin* cs
 		}
 	}
 
-	//TODO: we sometimes read this wrong
-	//m_psr0 = 0x02;
-	//m_psr1 = 0xfc;
-	m_psr0 = 0xcf;
-	m_psr1 = 0x02;
+	g_log("Active OTP bank = %d\n", activeBank);
 	g_log("Done (psr0 = %02x, psr1 = %02x)\n", m_psr0, m_psr1);
 }
 
@@ -738,9 +734,14 @@ void PDIEinkDisplay::LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bo
  */
 void PDIEinkDisplay::FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black)
 {
-	for(int16_t x=x0; x<=x1; x++)
+	if(x1 >= GetWidth())
+		x1 = GetWidth() - 1;
+	if(y1 >= GetHeight())
+		y1 = GetHeight() - 1;
+
+	for(int16_t x=x0; x <= x1; x++)
 	{
-		for(int16_t y=y0; y<=y1; y++)
+		for(int16_t y=y0; y <= y1; y++)
 			SetPixel(x, y, black);
 	}
 }
@@ -789,7 +790,7 @@ void PDIEinkDisplay::Iteration()
 
 		//Soft reset
 		case STATE_REFRESH_FAST_INIT:
-			g_log("fast refresh\n");
+			//g_log("fast refresh\n");
 
 			SendCommand(0x00);
 			SendData(0x0e);
@@ -808,7 +809,7 @@ void PDIEinkDisplay::Iteration()
 
 				//Send temperature
 				SendCommand(0xe5);
-				SendData( (temp >> 8) + 0x40 );
+				SendData(temp + 0x40);
 
 				//Activate temperature
 				SendCommand(0xe0);
@@ -855,7 +856,7 @@ void PDIEinkDisplay::Iteration()
 
 		//Initialization for the slow refresh path
 		case STATE_REFRESH_SLOW_INIT:
-			g_log("slow refresh\n");
+			//g_log("slow refresh\n");
 			{
 				//Get temperature and clamp to valid range
 				auto temp = GetBoardTempC();
@@ -864,7 +865,7 @@ void PDIEinkDisplay::Iteration()
 
 				//Send temperature
 				SendCommand(0xe5);
-				SendData(temp >> 8);
+				SendData(temp);
 
 				//Activate temperature
 				SendCommand(0xe0);
@@ -990,7 +991,6 @@ uint8_t PDIEinkDisplay::ReadData()
 	*m_cs_n = 0;
 
 	auto ret = m_spi->BlockingRead();
-
 
 	*m_cs_n = 1;
 	return ret;
