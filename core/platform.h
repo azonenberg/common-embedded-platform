@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2024-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -108,5 +108,20 @@ extern "C" void hardware_init_hook();
 extern "C" void CoreInit(unsigned int core);
 extern "C" void CoreMain(unsigned int core);
 #endif
+
+//MCU debug info
+const char* GetStepping(uint16_t rev);
+const char* GetPartName(
+	#ifdef STM32MP2
+		uint32_t device
+	#else
+		uint16_t device
+	#endif
+);
+
+#ifdef HAVE_PKG
+const char* GetPackage(uint8_t pkg);
+#endif
+
 
 #endif

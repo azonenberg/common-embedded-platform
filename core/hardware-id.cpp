@@ -41,19 +41,6 @@
 #include <peripheral/DCACHE.h>
 #endif
 
-const char* GetStepping(uint16_t rev);
-const char* GetPartName(
-	#ifdef STM32MP2
-		uint32_t device
-	#else
-		uint16_t device
-	#endif
-);
-
-#ifdef HAVE_PKG
-const char* GetPackage(uint8_t pkg);
-#endif
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Print info about an ARM CPU
 

@@ -2,7 +2,7 @@
 *                                                                                                                      *
 * common-embedded-platform                                                                                             *
 *                                                                                                                      *
-* Copyright (c) 2024 Andrew D. Zonenberg and contributors                                                              *
+* Copyright (c) 2024-2026 Andrew D. Zonenberg and contributors                                                         *
 * All rights reserved.                                                                                                 *
 *                                                                                                                      *
 * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the     *
@@ -33,5 +33,6 @@
 void InitFMCForFPGA();
 
 const char* GetNameOfFPGA(uint32_t idcode);
+void FormatXilinxBitstreamTimestamp(char* outbuf, size_t size, uint32_t usercode);
 
 #endif

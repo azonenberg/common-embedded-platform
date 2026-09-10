@@ -31,6 +31,7 @@
 #include <APB_DeviceInfo_Generic.h>
 #include <APB_DeviceInfo_UltraScale.h>
 #include <APB_DeviceInfo_7series.h>
+#include "FMCUtils.h"
 
 //TODO: make separate header for prototypes
 void PrintFPGAInfo(volatile APB_DeviceInfo_Generic* devinfo);
@@ -38,8 +39,6 @@ void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo);
 void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo);
 void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo, CharacterDevice* stream);
 void PrintFPGAInfo(volatile APB_DeviceInfo_UltraScale* devinfo, CharacterDevice* stream);
-
-const char* GetNameOfFPGA(uint32_t idcode);
 
 //All device info IPs have the same register space so we don't have to care what it is to start
 extern volatile APB_DeviceInfo_Generic FDEVINFO;
@@ -157,23 +156,28 @@ template<class T> void PrintFPGAInfoInt(T* devinfo)
 	if(name[0] == 'X')
 	{
 		LogIndenter li2(g_log);
-
-		//Format per XAPP1232:
-		//31:27 day
-		//26:23 month
-		//22:17 year
-		//16:12 hr
-		//11:6 min
-		//5:0 sec
-		int day = g_usercode >> 27;
-		int mon = (g_usercode >> 23) & 0xf;
-		int yr = 2000 + ((g_usercode >> 17) & 0x3f);
-		int hr = (g_usercode >> 12) & 0x1f;
-		int min = (g_usercode >> 6) & 0x3f;
-		int sec = g_usercode & 0x3f;
-		g_log("Bitstream timestamp: %04d-%02d-%02d %02d:%02d:%02d\n",
-			yr, mon, day, hr, min, sec);
+		char tmp[32];
+		FormatXilinxBitstreamTimestamp(tmp, sizeof(tmp), g_usercode);
+		g_log("Bitstream timestamp: %s\n", tmp);
 	}
+}
+
+void FormatXilinxBitstreamTimestamp(char* outbuf, size_t size, uint32_t usercode)
+{
+	//Format per XAPP1232:
+	//31:27 day
+	//26:23 month
+	//22:17 year
+	//16:12 hr
+	//11:6 min
+	//5:0 sec
+	int day = usercode >> 27;
+	int mon = (usercode >> 23) & 0xf;
+	int yr = 2000 + ((usercode >> 17) & 0x3f);
+	int hr = (usercode >> 12) & 0x1f;
+	int min = (usercode >> 6) & 0x3f;
+	int sec = usercode & 0x3f;
+	snprintf(outbuf, size, "%04d-%02d-%02d %02d:%02d:%02d", yr, mon, day, hr, min, sec);
 }
 
 void PrintFPGAInfo(volatile APB_DeviceInfo_7series* devinfo)
