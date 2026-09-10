@@ -52,12 +52,12 @@ public:
 
 	void Clear();
 
-	void SetPixel(uint8_t x, uint8_t y, bool black);
+	void SetPixel(uint16_t x, uint16_t y, bool black);
 
 	void Text8x16(int16_t x, int16_t y, const char* str, bool black);
 	void Text6x8(int16_t x, int16_t y, const char* str, bool black);
 	void Line(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
-	void FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black);
+	void FilledRect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, bool black);
 
 	void Shutdown()
 	{ SendCommand(0x02); }

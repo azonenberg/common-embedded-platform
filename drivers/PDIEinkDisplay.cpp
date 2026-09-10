@@ -545,6 +545,13 @@ void PDIEinkDisplay::Text6x8(int16_t x, int16_t y, const char* str, bool black)
 	{
 		char c = *str;
 
+		//If we get a \r before a \n, ignore it
+		if(c == '\r')
+		{
+			str ++;
+			continue;
+		}
+
 		//Handle newlines
 		if(c == '\n')
 		{
@@ -732,16 +739,16 @@ void PDIEinkDisplay::LineHigh(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bo
 
 	assumes x0 <= x1 and y0 <= y1 for now
  */
-void PDIEinkDisplay::FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, bool black)
+void PDIEinkDisplay::FilledRect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, bool black)
 {
 	if(x1 >= GetWidth())
 		x1 = GetWidth() - 1;
 	if(y1 >= GetHeight())
 		y1 = GetHeight() - 1;
 
-	for(int16_t x=x0; x <= x1; x++)
+	for(uint16_t x=x0; x <= x1; x++)
 	{
-		for(int16_t y=y0; y <= y1; y++)
+		for(uint16_t y=y0; y <= y1; y++)
 			SetPixel(x, y, black);
 	}
 }
@@ -752,7 +759,7 @@ void PDIEinkDisplay::FilledRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, 
 /**
 	@brief Sets a single pixel in the framebuffer
  */
-void PDIEinkDisplay::SetPixel(uint8_t x, uint8_t y, bool black)
+void PDIEinkDisplay::SetPixel(uint16_t x, uint16_t y, bool black)
 {
 	//Image scan order: bottom left to top left is first scanline
 	//bottom right to top right is last scanline
