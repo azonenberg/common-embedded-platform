@@ -555,17 +555,11 @@ const char* GetPartName(
 			case 0x425:	return "L031/041";
 			default:	return "(unknown)";
 		}
-	#elif defined(STM32H750)
-		//0x450 is H742/743/753/750
-		switch(device)
-		{
-			case 0x450:	return "H742/743/750/753";
-			default:	return "(unknown)";
-		}
 
-	//735 in particular has text ID in L_ID
-	#elif defined(STM32H735)
-		//0x483 is H735, but L_ID has text
+	//H735 (0x483) in particular has documented model ID register L_ID
+	//RM0433 rev 8 (January 2023) does not document this
+	//but H750 (0x450) has L_ID at the same address as the H735
+	#elif defined(STM32H750) || defined(STM32H735)
 		static const char id[5] =
 		{
 			static_cast<char>((L_ID >> 24) & 0xff),
