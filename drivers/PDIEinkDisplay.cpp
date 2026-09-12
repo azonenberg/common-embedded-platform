@@ -429,6 +429,8 @@ PDIEinkDisplay::PDIEinkDisplay(
 	, m_width(212)
 	, m_height(104)
 	, m_refreshState(STATE_IDLE)
+	, m_refreshQueued(false)
+	, m_refreshQueuedIsFull(false)
 {
 	//Deassert SPI CS#
 	*m_cs_n = 1;
@@ -786,8 +788,22 @@ void PDIEinkDisplay::SetPixel(uint16_t x, uint16_t y, bool black)
  */
 void PDIEinkDisplay::Iteration()
 {
+	//If not refreshing, nothing to do except begin a previously queued one
 	if(!IsRefreshInProgress())
-		return;
+	{
+		if(m_refreshQueued)
+		{
+			if(m_refreshQueuedIsFull)
+				m_refreshState = STATE_REFRESH_SLOW_INIT;
+			else
+				m_refreshState = STATE_REFRESH_FAST_INIT;
+
+			m_refreshQueued = false;
+			m_refreshQueuedIsFull = false;
+		}
+		else
+			return;
+	}
 
 	//See what needs doing
 	switch(m_refreshState)
@@ -959,7 +975,15 @@ void PDIEinkDisplay::Iteration()
  */
 void PDIEinkDisplay::StartRefresh(bool forceFullScreenUpdate)
 {
-	if(forceFullScreenUpdate)
+	//Don't interrupt a refresh that's already running, queue it for later
+	if(IsRefreshInProgress())
+	{
+		m_refreshQueued = true;
+		if(forceFullScreenUpdate)
+			m_refreshQueuedIsFull = true;
+	}
+
+	else if(forceFullScreenUpdate)
 		m_refreshState = STATE_REFRESH_SLOW_INIT;
 	else
 		m_refreshState = STATE_REFRESH_FAST_INIT;

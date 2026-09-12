@@ -124,6 +124,10 @@ protected:
 
 	uint8_t m_psr0;
 	uint8_t m_psr1;
+
+	//Indicate another refresh is enqueued but hasn't run yet
+	bool m_refreshQueued;
+	bool m_refreshQueuedIsFull;
 };
 
 #endif
