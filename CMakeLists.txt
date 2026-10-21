@@ -64,6 +64,8 @@ if(CEP_BUILD_DRIVERS)
 	add_subdirectory(drivers)
 endif()
 
+add_subdirectory(scpi)
+
 if(CEP_BUILD_TCPIP)
 	add_subdirectory(tcpip)
 endif()
