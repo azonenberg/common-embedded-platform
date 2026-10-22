@@ -43,6 +43,12 @@ public:
 
 	virtual void Iteration() override;
 
+	void Clear()
+	{
+		memset(m_line, 0, sizeof(m_line));
+		m_writepos = 0;
+	}
+
 protected:
 	void OnChar(char ch);
 	void OnLine();

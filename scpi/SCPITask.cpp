@@ -37,7 +37,7 @@ SCPITask::SCPITask(BufferedCharacterDeviceBase* device)
 	: m_writepos(0)
 	, m_device(device)
 {
-	memset(m_line, 0, sizeof(m_line));
+	Clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -69,7 +69,7 @@ void SCPITask::OnChar(char ch)
 	}
 
 	//Anything else? append it
-	else
+	else if(isprint(ch))
 	{
 		//Do we have space? Echo it
 		if( (m_writepos + 1) < sizeof(m_line))
